@@ -104,7 +104,7 @@ class dv_monitor #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WID
                 // Save the data 
                 monitor_item.data[i*DATA_WIDTH +: DATA_WIDTH] = vif.monitor_cb.data;
                 if (i == 0) begin
-                    $display("monitor_item.data = %h", monitor_item.data);
+                    // $display("monitor_item.data = %h", monitor_item.data);
                 end
                 // if(vif.monitor_cb.valid)
                     i--;                    

@@ -65,7 +65,7 @@ package rx_verification_pack;
 
     localparam int unsigned CONTROL_DATA_WIDTH_IN_BYTES  = CONTROL_DATA_WIDTH     / $bits(byte);
     localparam int unsigned CONTROL_CRC_WIDTH_IN_BYTES   = CONTROL_CRC_DATA_WIDTH / $bits(byte);
-    localparam int unsigned CONTROL_AND_CRC_BYTES        = (CONTROL_DATA_WIDTH_IN_BYTES + CONTROL_CRC_WIDTH_IN_BYTES ) / $bits(byte);
+    localparam int unsigned CONTROL_AND_CRC_BYTES        = CONTROL_DATA_WIDTH_IN_BYTES + CONTROL_CRC_WIDTH_IN_BYTES;
 
     localparam int unsigned PARITY_BYTES                 = PARITY_DATA_WIDTH      / $bits(byte);
 

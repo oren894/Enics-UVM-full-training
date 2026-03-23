@@ -129,7 +129,6 @@ module rx_top_tb ();
         wait(dut.fsm_current_state == FSM_LOCKED);
         $display("FSM is locked at time %0t", $time);
         #100;
-        $finish();
     end
 endmodule
 

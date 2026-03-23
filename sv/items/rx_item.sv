@@ -202,9 +202,9 @@ class rx_item extends uvm_object;
         // 1. Construct stream of current item fields
         // Normal: Pack Length, Control, Data, Parity.
         packer.pack_field_int(this.new_length_with_crc, $bits(this.new_length_with_crc));
-        $display("length: %h, length_with_crc: %h", this.length, this.new_length_with_crc);
+        // $display("length: %h, length_with_crc: %h", this.length, this.new_length_with_crc);
         packer.pack_field_int(this.new_control_with_crc, $bits(this.new_control_with_crc));
-        $display("control: %h, control_with_crc: %h", this.control, this.new_control_with_crc);
+        // $display("control: %h, control_with_crc: %h", this.control, this.new_control_with_crc);
         // Pack Data
         foreach(this.data[i]) begin
             packer.pack_field_int(this.data[i], 8);

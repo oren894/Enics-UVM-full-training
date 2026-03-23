@@ -40,36 +40,36 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Nested Sequences.
     ------------------------------------------------------------------------------*/
     rx_input_data_sequence           input_data_sequence           = null;
-
+    bit lock_valid;
     rand rx_test_type_e test_type;
     rand rx_lock_type_e lock_type;
 
     constraint test_type_c {
         test_type dist {
             TEST_REGULAR := 1,
-            TEST_REAL    := 0
+            TEST_REAL    := 1
         };
     }
 
     constraint lock_type_c {
         lock_type dist {
             LOCK_REGULAR        := 1,
-            LOCK_ONE_PACKET_OUT := 0,
-            LOCK_PHASE_CHANGE   := 0,
-            LOCK_HARD_NOT_LOCKED := 0,
-            LOCK_SOFT_NOT_LOCKED := 0
+            LOCK_ONE_PACKET_OUT := 1,
+            LOCK_PHASE_CHANGE   := 1,
+            LOCK_HARD_NOT_LOCKED := 1,
+            LOCK_SOFT_NOT_LOCKED := 1
         };
     }
 
     rand int unsigned num_msgs;
     constraint num_msgs_c {
-        num_msgs inside {[10:10]};
+        num_msgs inside {[10:100]};
     }
 
 
     rand int unsigned transaction_count;
     constraint transaction_count_c {
-        transaction_count inside {[1:1]};
+        transaction_count inside {[1:10]};
     }
 
     /*-------------------------------------------------------------------------------
@@ -110,13 +110,13 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Body.
     -------------------------------------------------------------------------------*/
     task body();
-    
+        lock_valid = 0;
         // Randomize the virtual sequence parameters (test_type, lock_type, etc.)
         if(!this.randomize()) begin
             `uvm_fatal(get_name(), "Failed to randomize virtual sequence!")
         end
-        `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d", test_type.name(), lock_type.name(), num_msgs), UVM_LOW)
-
+        `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d, transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count), UVM_LOW)
+        $display("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d ,transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count);
         //Create Phase
         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                 input_data.half_packet == 1;
@@ -135,6 +135,7 @@ class rx_virtual_sequence extends uvm_sequence;
                         `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
                     end
                 end
+                lock_valid = 1;
             end
             LOCK_ONE_PACKET_OUT: begin
                 `uvm_info(get_name(), "Executing LOCK_ONE_PACKET_OUT scenario...", UVM_LOW)
@@ -162,6 +163,7 @@ class rx_virtual_sequence extends uvm_sequence;
                 repeat(lock_valid_threshold_val) begin
                      `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
                 end
+                lock_valid = 1;
             end
             LOCK_HARD_NOT_LOCKED: begin
                 `uvm_info(get_name(), "Executing LOCK_HARD_NOT_LOCKED scenario...", UVM_LOW)
@@ -179,6 +181,7 @@ class rx_virtual_sequence extends uvm_sequence;
                 repeat(lock_valid_threshold_val) begin
                      `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
                 end
+                lock_valid = 1;
             end
             LOCK_SOFT_NOT_LOCKED: begin
                 `uvm_info(get_name(), "Executing LOCK_SOFT_NOT_LOCKED scenario...", UVM_LOW)
@@ -196,48 +199,53 @@ class rx_virtual_sequence extends uvm_sequence;
                 repeat(lock_valid_threshold_val) begin
                      `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
                 end
+                lock_valid = 1;
             end
         endcase
 
         // Handle Test Types
         case(test_type)
-            TEST_REGULAR: begin
-                `uvm_info(get_name(), "Executing TEST_REGULAR scenario...", UVM_LOW)
-                if(lock_type!= LOCK_ONE_PACKET_OUT) begin
-                    repeat(num_msgs) begin
-                        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                            is_locked == 1;
-                        })
-                    end
-                end
-            end
-            TEST_REAL: begin
-                `uvm_info(get_name(), "Executing TEST_REAL scenario...", UVM_LOW)
-                if(lock_type!= LOCK_ONE_PACKET_OUT) begin
-                    repeat(transaction_count) begin
-                        // 0-1000 packets of min length
-                        repeat($urandom_range(0, 1000)) begin
-                            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                                is_locked == 1;
-                                input_data.length == rx_verification_pack::MIN_DATA_SIZE;
-                            })
-                        end
-                        // 0-100 optimal
-                        repeat($urandom_range(0, 100)) begin
-                            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                                is_locked == 1;
-                                input_data.length == rx_verification_pack::OPTIMAL_DATA_SIZE;
-                            })
-                        end
-                        // 1 that between min-optimal
-                        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                            is_locked == 1;
-                            input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE + 1 : rx_verification_pack::OPTIMAL_DATA_SIZE - 1]};
-                        })
-                    end
-                end
-            end
             
+                TEST_REGULAR: begin
+                    `uvm_info(get_name(), "Executing TEST_REGULAR scenario...", UVM_LOW)
+                    if(lock_valid == 1) begin
+                        if(lock_type!= LOCK_ONE_PACKET_OUT) begin
+                            repeat(num_msgs) begin
+                                `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                                    is_locked == 1;
+                                })
+                            end
+                        end
+                    end
+                end
+                TEST_REAL: begin
+                    `uvm_info(get_name(), "Executing TEST_REAL scenario...", UVM_LOW)
+                    if(lock_valid == 1) begin
+                        if(lock_type!= LOCK_ONE_PACKET_OUT) begin
+                            repeat(transaction_count) begin
+                                // 0-1000 packets of min length
+                                repeat($urandom_range(0, 1000)) begin
+                                    `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                                    is_locked == 1;
+                                    input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+                                })
+                                end
+                                // 0-100 optimal
+                                repeat($urandom_range(0, 100)) begin
+                                    `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                                        is_locked == 1;
+                                        input_data.length == rx_verification_pack::OPTIMAL_DATA_SIZE;
+                                    })
+                                end
+                                // 1 that between min-optimal
+                                `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                                    is_locked == 1;
+                                    input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE + 1 : rx_verification_pack::OPTIMAL_DATA_SIZE - 1]};
+                                })
+                            end
+                        end
+                    end
+                end
         endcase
     endtask
 

@@ -48,14 +48,15 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
     -------------------------------------------------------------------------------*/
     constraint length_c {
         // Length will be randomized between MIN-MAX and divisible by 4
-        input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE : rx_verification_pack::MIN_DATA_SIZE]};
+        input_data.length inside {[8:8]};
+        // {[rx_verification_pack::MIN_DATA_SIZE : rx_verification_pack::MAX_DATA_SIZE]};
         input_data.length % 4 == 0;
     }
 
     constraint control_c {
         input_data.control dist {
-            0             :/ 100,
-            [1:$]         :/ 0
+            0             :/ 25,
+            [1:$]         :/ 75
         };
     }
 
@@ -141,7 +142,7 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
 
         // Pack the item to byte array
         this.input_data.pack(bit_array);
-        $display("length = %0d", this.input_data.length);
+        // $display("length = %0d", this.input_data.length);
 
         // Handle Half Packet: Strip Headers and Random Data
         // if (this.input_data.half_packet) begin
@@ -176,12 +177,12 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
         remainder.delete(); 
 
         // Append current packed data starting from start_idx
-        $display("bit_array.size() = %0d", bit_array.size());
-        $display("start_idx = %0d", start_idx);
+        // $display("bit_array.size() = %0d", bit_array.size());
+        // $display("start_idx = %0d", start_idx);
         for(int i = start_idx; i < bit_array.size(); i++) begin
             bit_queue.push_back(bit_array[i]);
         end
-        $display("bit_queue.size() = %0d", bit_queue.size());
+        // $display("bit_queue.size() = %0d", bit_queue.size());
         // Send full chunks
         while (bit_queue.size() >= rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH) begin
             // Extract chunk

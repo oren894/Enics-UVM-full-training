@@ -157,29 +157,29 @@ class rx_item extends uvm_object;
 
         // Length
         temp_length = {this.length, this.length_crc}; 
-        // if (this.wrong_length) begin
-        //     // Inject at least 2 errors
-        //     num_flips = $urandom_range(2, $bits(temp_length));
-        //     while (flipped_indices.size() < num_flips) begin
-        //         bit_index = $urandom_range(0, $bits(temp_length) - 1);
-        //         if (!(bit_index inside {flipped_indices})) begin
-        //             temp_length[bit_index] = ~temp_length[bit_index];
-        //             flipped_indices.push_back(bit_index);
-        //         end
-        //     end
-        // end else if (this.length_error) begin
-        //     //Inject 1 error
-        //     bit_index = $urandom_range(0, $bits(temp_length) - 1);
-        //     temp_length[bit_index] = ~temp_length[bit_index];
-        // end
+        if (this.wrong_length) begin
+            // Inject at least 2 errors
+            num_flips = $urandom_range(2, $bits(temp_length));
+            while (flipped_indices.size() < num_flips) begin
+                bit_index = $urandom_range(0, $bits(temp_length) - 1);
+                if (!(bit_index inside {flipped_indices})) begin
+                    temp_length[bit_index] = ~temp_length[bit_index];
+                    flipped_indices.push_back(bit_index);
+                end
+            end
+        end else if (this.length_error) begin
+            //Inject 1 error
+            bit_index = $urandom_range(0, $bits(temp_length) - 1);
+            temp_length[bit_index] = ~temp_length[bit_index];
+        end
         this.new_length_with_crc = temp_length;
 
         // Control
         temp_control = {this.control, this.control_crc};
-        // if (this.control_error) begin
-        //     bit_index = $urandom_range(0, $bits(temp_control) - 1);
-        //     temp_control[bit_index] = ~temp_control[bit_index];
-        // end
+        if (this.control_error) begin
+            bit_index = $urandom_range(0, $bits(temp_control) - 1);
+            temp_control[bit_index] = ~temp_control[bit_index];
+        end
         this.new_control_with_crc = temp_control;
 
         // Parity

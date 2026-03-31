@@ -32,10 +32,14 @@ module rx_top_tb ();
     /*------------------------------------------------------------------------------
     -- Interfaces.
     ------------------------------------------------------------------------------*/
-    // TODO: write an interface for dv.
     dv_if #(.DATA_WIDTH(rx_verification_pack::INPUT_DATA_WIDTH))                input_data           (.clk(clk));
     dv_if #(.DATA_WIDTH(rx_verification_pack::OUTPUT_DATA_WIDTH))               output_data          (.clk(clk));
     dv_if #(.DATA_WIDTH(rx_verification_pack::CONTROL_DATA_WIDTH))              control              (.clk(clk));
+
+    bit control_valid_out;
+    bit [rx_verification_pack::CONTROL_DATA_WIDTH - 1:0] control_data_out;
+    bit output_valid_out;
+    bit [rx_verification_pack::OUTPUT_DATA_WIDTH - 1:0] output_data_out;
 
     /*-------------------------------------------------------------------------------
     -- Module declarations
@@ -61,6 +65,11 @@ module rx_top_tb ();
         .parity_not_valid(), 
         .parity_valid()
     );
+
+    // assign control.data = control_data_out;
+    // assign control.valid = control_valid_out;
+
+    
 
     /*------------------------------------------------------------------------------
     -- Lock Valid Threshold Randomization.
@@ -128,7 +137,8 @@ module rx_top_tb ();
     initial begin
         wait(dut.fsm_current_state == FSM_LOCKED);
         $display("FSM is locked at time %0t", $time);
-        #100;
+        #1000;
+       // $finish;
     end
 endmodule
 

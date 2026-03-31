@@ -53,7 +53,7 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
 
         // Initialize members
         this.vif                = null;
-        this.valid_probability  = 100;
+        this.valid_probability  = 25;
     endfunction
 
     /*-------------------------------------------------------------------------------
@@ -93,6 +93,7 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
 
         // Clear master.
         this.vif.CLEAR_MASTER_CB();
+        @(this.vif.master_cb);
 
         fork 
             // The driver would always be master.
@@ -141,7 +142,6 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
                             1 :/ valid_probability
                         };
                     };
-                    valid_bit = 1;
                     this.vif.master_cb.valid <= valid_bit;
                     
                     if (valid_bit) begin

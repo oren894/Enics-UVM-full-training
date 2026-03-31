@@ -63,9 +63,12 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
         // Push the item to the queue
         this.env_items.push_back(item);
 
+        // `uvm_info(this.get_full_name(), $sformatf(" Write env"), UVM_LOW)
+        // item.print();
+
         // Try to compare the items
         void'(this.compare());
-        $display("env_items size = %0d", this.env_items.size());
+      //  $display("env_items size = %0d", this.env_items.size());
     endfunction
 
     /*-------------------------------------------------------------------------------
@@ -75,6 +78,9 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
 
         // Push the item to the queue
         this.dut_items.push_back(item);
+
+        // `uvm_info(this.get_full_name(), $sformatf(" Write dut"), UVM_LOW)
+        // item.print();
 
         // Try to compare the items
         void'(this.compare());
@@ -88,6 +94,9 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
         dv_monitor_item #(DATA_WIDTH) env_item;
         dv_monitor_item #(DATA_WIDTH) dut_item;
 
+        // $display("env_items size 2 = %0d", this.env_items.size());
+        // $display("dut_items size 2 = %0d", this.dut_items.size());
+
         // If both queues are not empty
         if(this.env_items.size() > 0 && this.dut_items.size() > 0) begin
 
@@ -98,7 +107,7 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
             // Compare the items
             if(env_item.compare(dut_item)) begin
                 this.item_compared++;
-                `uvm_info(this.get_full_name(), $sformatf("%0d Items compare succeeded", this.item_compared), UVM_LOW)
+             //   `uvm_info(this.get_full_name(), $sformatf("%0d Items compare succeeded", this.item_compared), UVM_LOW)
 
             // If the items are not the same, print them and raise a fatal
             end else begin

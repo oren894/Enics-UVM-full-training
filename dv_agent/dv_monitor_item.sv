@@ -33,7 +33,7 @@ class dv_monitor_item #(parameter int SEQUENCE_ITEM_WIDTH = 8) extends uvm_objec
     -- UVM Macros.
     -------------------------------------------------------------------------------*/
     `uvm_object_param_utils_begin(dv_monitor_item #(SEQUENCE_ITEM_WIDTH))
-        `uvm_field_sarray_int(data, UVM_DEFAULT | UVM_NOPACK) 
+        `uvm_field_sarray_int(data, UVM_DEFAULT | UVM_NOPACK | UVM_NOPRINT) 
     `uvm_object_utils_end
 
     /*-------------------------------------------------------------------------------
@@ -59,6 +59,18 @@ class dv_monitor_item #(parameter int SEQUENCE_ITEM_WIDTH = 8) extends uvm_objec
 
         // Unpack data
         this.data = packer.unpack_field_int($bits(this.data));
+    endfunction
+
+
+    /*-------------------------------------------------------------------------------
+    -- Do print.
+    -------------------------------------------------------------------------------*/
+    virtual function void do_print(uvm_printer printer);
+        super.do_print(printer);
+
+        foreach (data[i]) begin
+            printer.print_int($sformatf("[%0d]", i), this.data[i], $bits(this.data[i]));
+        end
     endfunction
 endclass
 

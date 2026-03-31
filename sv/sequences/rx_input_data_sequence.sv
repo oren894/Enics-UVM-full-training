@@ -48,9 +48,15 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
     -------------------------------------------------------------------------------*/
     constraint length_c {
         // Length will be randomized between MIN-MAX and divisible by 4
-        input_data.length inside {[8:8]};
-        // {[rx_verification_pack::MIN_DATA_SIZE : rx_verification_pack::MAX_DATA_SIZE]};
+        input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE:rx_verification_pack::MAX_DATA_SIZE]};
         input_data.length % 4 == 0;
+    }
+
+    constraint half_packet_c {
+        input_data.half_packet dist {
+            0 :/ 50,
+            1 :/ 50
+        };
     }
 
     constraint control_c {
@@ -63,8 +69,8 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
     constraint length_error_c {
         if (is_locked) {
             input_data.length_error dist {
-                0 :/ 100,
-                1 :/ 0
+                0 :/ 80,
+                1 :/ 20
             };
         } else {
             input_data.length_error == 0;
@@ -81,15 +87,15 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
 
     constraint control_error_c {
         input_data.control_error dist {
-            0 :/ 100,
-            1 :/ 0
+            0 :/ 80,
+            1 :/ 20
         };
     }
 
     constraint parity_error_c {
         input_data.parity_error dist {
-            0 :/ 100,
-            1 :/ 0
+            0 :/ 80,
+            1 :/ 20
         };
     }
     /*-------------------------------------------------------------------------------
@@ -137,74 +143,54 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
         bit [rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH-1:0] chunk_data;
         int start_idx = 0;
 
-        // Randomize the sequence (applies class constraints to input_data)
-        // void'(this.randomize()); // REMOVED: uvm_do_with already randomizes this!
-
-        // Pack the item to byte array
+        // 1. Pack the item into a bit array
         this.input_data.pack(bit_array);
-        // $display("length = %0d", this.input_data.length);
-
-        // Handle Half Packet: Strip Headers and Random Data
-        // if (this.input_data.half_packet) begin
-        //     int header_bits = rx_verification_pack::LENGTH_DATA_WIDTH + 
-        //                       rx_verification_pack::LENGTH_CRC_DATA_WIDTH + 
-        //                       rx_verification_pack::CONTROL_DATA_WIDTH + 
-        //                       rx_verification_pack::CONTROL_CRC_DATA_WIDTH;
+        $display("errors (length_error, control_error, parity_error, wrong_length) = %0d %0d %0d %0d", this.input_data.length_error, this.input_data.control_error, this.input_data.parity_error, this.input_data.wrong_length);
+        // 2. Handle Half Packet: Strip Headers and Random Data
+        if (this.input_data.half_packet) begin
+            int header_bits = rx_verification_pack::LENGTH_DATA_WIDTH + 
+                              rx_verification_pack::LENGTH_CRC_DATA_WIDTH + 
+                              rx_verification_pack::CONTROL_DATA_WIDTH + 
+                              rx_verification_pack::CONTROL_CRC_DATA_WIDTH;
             
-        //     // Calculate remaining payload size
-        //     int payload_bits = bit_array.size() - header_bits;
-            
-        //     // Determine random amount to strip from the payload start
-        //     // Ensure we don't strip everything if possible, or maybe we do? 
-        //     // User said "random bits of the head of data+parity".
-        //     // Let's strip somewhere between 0 and payload_bits - 1.
-        //     int random_strip = 0;
-        //     // if (payload_bits > 0) begin
-        //     //     random_strip = $urandom_range(0, payload_bits - 1);
-        //     // end
+            // Strip headers + 1 to 7 extra bits to force byte/chunk misalignment
+            int random_strip = $urandom_range(1, 7);
+            $display("Creating half packet");
 
-        //     // Slice the array
-        //     // New start index is header + random_strip
-        //     if ((header_bits + random_strip) < bit_array.size()) begin
-        //         start_idx = header_bits + random_strip;
-        //     end else begin
-        //         start_idx = bit_array.size(); // Skip pushing anything
-        //     end
-        // end
+            if ((header_bits + random_strip) < bit_array.size()) begin
+                start_idx = header_bits + random_strip;
+            end else begin
+                // If the packet is abnormally small, skip pushing anything
+                start_idx = bit_array.size(); 
+            end
+        end
 
-        // Prepend remainder from previous transactions
-        foreach(remainder[i]) bit_queue.push_back(remainder[i]);
-        remainder.delete(); 
+        // 3. Prepend remainder from previous transactions FIRST
+        foreach(remainder[i]) begin
+            bit_queue.push_back(remainder[i]);
+        end
+        remainder.delete(); // Clear the static buffer after copying
+        $display("start_idx = %0d, bit_array.size() = %0d", start_idx, bit_array.size());
+        $display("half_packet = %0d", this.input_data.half_packet);
 
-        // Append current packed data starting from start_idx
-        // $display("bit_array.size() = %0d", bit_array.size());
-        // $display("start_idx = %0d", start_idx);
+        // 4. Append the current packed data starting from start_idx
         for(int i = start_idx; i < bit_array.size(); i++) begin
             bit_queue.push_back(bit_array[i]);
         end
-        // $display("bit_queue.size() = %0d", bit_queue.size());
-        // Send full chunks
+
+        // 5. Send full chunks
         while (bit_queue.size() >= rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH) begin
-            // Extract chunk
-            for (int i=rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH-1; i >= 0; i--) begin
+            // Extract chunk (assuming pop_front() represents MSB to LSB as per your original loop)
+            for (int i = rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH-1; i >= 0; i--) begin
                  chunk_data[i] = bit_queue.pop_front();
             end
             
-            // $display("chunk_data: %h", chunk_data);
+            // Send to sequencer
             `uvm_do_on_with(this.req, this.p_sequencer, {data == chunk_data;}) 
         end
 
-        // Save leftover bits for next transaction
+        // 6. Save leftover bits back to the static variable for the next sequence execution
         remainder = bit_queue;
-
-        // TODO: Send each part of the data to the dv agent. 
-        // Packing and then sending should be good, remember that you need to add the shift.
-
-        // Unpack the bit array into sequence item
-        // super.req.unpack(bit_array);
-
-        // Send the sequence_item to sequencer
-        // `uvm_send(this.req)
     endtask
 
     /*-------------------------------------------------------------------------------

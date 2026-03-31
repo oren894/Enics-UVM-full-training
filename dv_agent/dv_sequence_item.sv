@@ -33,7 +33,7 @@ class dv_sequence_item #(parameter int SEQUENCE_ITEM_WIDTH = 8) extends uvm_sequ
     -- UVM Macros.
     -------------------------------------------------------------------------------*/
     `uvm_object_param_utils_begin(dv_sequence_item #(SEQUENCE_ITEM_WIDTH))
-        `uvm_field_sarray_int(data, UVM_DEFAULT | UVM_NOPACK) 
+        `uvm_field_sarray_int(data, UVM_DEFAULT | UVM_NOPACK | UVM_NOPRINT) 
     `uvm_object_utils_end
 
     /*-------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class dv_sequence_item #(parameter int SEQUENCE_ITEM_WIDTH = 8) extends uvm_sequ
     -- Do pack.
     -------------------------------------------------------------------------------*/
     virtual function void do_pack(uvm_packer packer);
-
+        
         // Pack the data
         packer.pack_field_int(this.data, $bits(this.data));
     endfunction
@@ -59,6 +59,17 @@ class dv_sequence_item #(parameter int SEQUENCE_ITEM_WIDTH = 8) extends uvm_sequ
 
         // Unpack data
         this.data = packer.unpack_field_int($bits(this.data));
+    endfunction
+
+    /*-------------------------------------------------------------------------------
+    -- Do print.
+    -------------------------------------------------------------------------------*/
+    virtual function void do_print(uvm_printer printer);
+        super.do_print(printer);
+
+        foreach (data[i]) begin
+            printer.print_int($sformatf("[%0d]", i), this.data[i], $bits(this.data[i]));
+        end
     endfunction
 endclass
 

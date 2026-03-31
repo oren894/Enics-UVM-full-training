@@ -4,7 +4,7 @@
 // Project name : 
 // Author       : 
 // Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Company      : EniCS
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -68,12 +68,13 @@ class rx_reference_model extends uvm_component;
     
     // Packet Phase tracking
     int current_packet_state_byte_counter = 0;
+
+    // ---- Byte Counter ----
+    // Counts every single byte that write_input_data receives from the monitor.
+    longint unsigned total_bytes_received = 0;
     
     // Streaming variables
-    bit [31:0] length_word  = '0;
-    bit [31:0] control_word = '0;
-    bit [31:0] data_chunk   = '0;
-    bit [31:0] parity_word  = '0;
+    bit [31:0] current_word = '0;
     bit [31:0] running_parity_acc = '0; 
     
     // Used to align incoming bits against `locked_phase`
@@ -162,15 +163,17 @@ class rx_reference_model extends uvm_component;
         // $display("window_frame = %h", this.window_frame);
         // Check all the phases (every phase is a shift of the window 1 bit right)
         for (int phase = 0; phase < $bits(byte); phase++) begin
+            //$display("window_frame = %h", window_frame);
 
             // Save the sliding window of the current phase.
             sliding_window = window_frame[rx_verification_pack::FRAME_WIDTH-1-phase -: rx_verification_pack::SLIDING_WINDOW_WIDTH];
-
+         //   $display("sliding_window = %h time = %t", sliding_window, $time);
             // Check if the CRC is correct.
             if (is_len_crc_correct(
                 .length(sliding_window[rx_verification_pack::SLIDING_WINDOW_WIDTH-1 -: rx_verification_pack::LENGTH_DATA_WIDTH]),
                 .received_crc(sliding_window[rx_verification_pack::LENGTH_CRC_DATA_WIDTH-1 : 0])
             )) begin
+             //   $display("sliding_window = %h time = %t", sliding_window, $time);
 
                 // The crc was correct, so we are locked and save the phase.
                 phase_found = phase;
@@ -266,9 +269,27 @@ class rx_reference_model extends uvm_component;
     -- Write Input Data (FSM Implementation)
     -------------------------------------------------------------------------------*/
     virtual function void write_input_data(dv_monitor_item #(rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH) item);
+        // ---- Local variable declarations (all at top) ----
         byte incoming_byte = item.data;
         bit [rx_verification_pack::SLIDING_WINDOW_WIDTH-1:0] sliding_window = '0;
-        // $display(" Current state = %s", this.current_lock_state.name());
+        byte extracted_byte;
+        bit [15:0] two_bytes;
+
+        // ---- Byte Counter ----
+        this.total_bytes_received++;
+        `uvm_info(this.get_name(), $sformatf("[BYTE_COUNTER] Byte #%0d received: 0x%02h  | lock_state=%s  pkt_state=%s",
+            this.total_bytes_received, incoming_byte,
+            this.current_lock_state.name(), this.current_packet_state.name()), UVM_HIGH)
+
+        two_bytes = {this.prev_raw_byte, incoming_byte};
+
+        // Correctly shift tracking byte by locked phase unconditionally
+        extracted_byte = two_bytes[15 - this.locked_phase -: 8];
+
+        // Unconditionally update the sliding window and previous byte outside the case
+        this.current_word = (this.current_word << 8) | extracted_byte;
+        this.prev_raw_byte = incoming_byte;
+
         //  Checking the current lock stage of the model
         case (this.current_lock_state)
             
@@ -279,7 +300,7 @@ class rx_reference_model extends uvm_component;
                 this.shift_window(incoming_byte);
                 
                 // Check if we have enough bytes to check for a lock
-                if (this.bytes_accumulated < rx_verification_pack::FRAME_WIDTH_IN_BYTES) begin
+                if (this.bytes_accumulated < rx_verification_pack::FRAME_WIDTH_IN_BYTES-1) begin
                     this.bytes_accumulated++;
                     return; // Wait until we have all the bytes in order to check for a lock
                 end
@@ -295,58 +316,62 @@ class rx_reference_model extends uvm_component;
 
                     // Save the length from the window (it is the length of the message).
                     this.expected_msg_length = int'(sliding_window[rx_verification_pack::SLIDING_WINDOW_WIDTH-1 -: rx_verification_pack::LENGTH_DATA_WIDTH]);
-                    
-                    // Save the byte that just got in order to use this data in the next cycle.
-                    this.prev_raw_byte = incoming_byte; 
                 end
             end
             
                 // Checks if the length + CRC is correct lock_valid_threshold times.
             MAYBE_LOCKED: begin
-                byte extracted_byte;
-                
-                // Save to the extracted byte the next byte of the message (because some of the bits were checked before)
-                bit [2 * $bits(byte)-1:0] two_bytes = {this.prev_raw_byte, incoming_byte};
-                extracted_byte = two_bytes[$bits(two_bytes)-1 - this.locked_phase -: $bits(byte)]; // TODO: CHECK THIS!!!!
-                
-                // Save the current byte to the previous byte for the next cycle.
-                this.prev_raw_byte = incoming_byte;
                 this.current_packet_state_byte_counter++;
 
                 case (this.current_packet_state)
                     PACKET_LENGTH: begin
-                        this.length_word = (this.length_word << $bits(byte)) | extracted_byte; // Build the length + crc word
-                        if (this.current_packet_state_byte_counter == rx_verification_pack::LENGTH_AND_CRC_BYTES) begin // Check if we have all the bytes in order to check for a lock
-                            bit [rx_verification_pack::LENGTH_DATA_WIDTH-1:0] len_val = this.length_word[rx_verification_pack::LENGTH_DATA_WIDTH + rx_verification_pack::LENGTH_CRC_DATA_WIDTH -1 -: rx_verification_pack::LENGTH_DATA_WIDTH];
-                            bit [rx_verification_pack::LENGTH_CRC_DATA_WIDTH-1:0] len_crc = this.length_word[rx_verification_pack::LENGTH_CRC_DATA_WIDTH-1:0];
-                            
-                            // Must be PERFECT in MAYBE_LOCKED. If 1 error, fail.
-                            if (!is_len_crc_correct(len_val, len_crc)) begin // If the CRC is not correct, we move to NOT_LOCKED
-                                this.current_lock_state = NOT_LOCKED; // Move to NOT_LOCKED
-                                this.consecutive_valid_packet_counter = 0; // Reset the counter
-                                this.bytes_accumulated = 0; // Reset the counter
-                                // this.window_frame = '0; // Reset the window frame
-                            end else begin // If the CRC is correct we stay in maybe_locked and move to the next state until we got lock_valid_threshold_value correct
-                                this.expected_msg_length = len_val; // Save the length of the message
-                                this.current_packet_state = PACKET_CONTROL; // Move to the next state
-                                this.current_packet_state_byte_counter = 0; // Reset the counter
-                                // this.control_word = '0; // Reset the control word
+                        if (this.current_packet_state_byte_counter == rx_verification_pack::LENGTH_AND_CRC_BYTES) begin
+
+                            // -----------------------------------------------------------------------
+                            // OPTION A — STRICT (no errors allowed): swap in if you want 0-tolerance
+                            // -----------------------------------------------------------------------
+                            // bit [LENGTH_DATA_WIDTH-1:0]     len_val = current_word[LENGTH_DATA_WIDTH + LENGTH_CRC_DATA_WIDTH -1 -: LENGTH_DATA_WIDTH];
+                            // bit [LENGTH_CRC_DATA_WIDTH-1:0] len_crc = current_word[LENGTH_CRC_DATA_WIDTH-1:0];
+                            // if (!is_len_crc_correct(len_val, len_crc)) begin
+                            //     current_lock_state = NOT_LOCKED;
+                            //     consecutive_valid_packet_counter = 0;
+                            //     bytes_accumulated = 0;
+                            // end else begin
+                            //     expected_msg_length = len_val;
+                            //     current_packet_state = PACKET_CONTROL;
+                            //     current_packet_state_byte_counter = 0;
+                            //     consecutive_valid_packet_counter++;
+                            //     if (consecutive_valid_packet_counter >= lock_valid_threshold_value)
+                            //         current_lock_state = LOCKED;
+                            // end
+                            // -----------------------------------------------------------------------
+                            // OPTION B (ACTIVE) — same tolerance as LOCKED: 0 or 1-bit error corrected;
+                            //                     only 2+ errors → NOT_LOCKED
+                            // -----------------------------------------------------------------------
+                            int num_errors;
+                            bit [31:0] corrected_len = check_and_correct_errors_len(this.current_word, num_errors);
+
+                            if (num_errors > 1) begin // 2+ errors → drop to NOT_LOCKED
+                                this.current_lock_state = NOT_LOCKED;
+                                this.consecutive_valid_packet_counter = 0;
+                                this.bytes_accumulated = 0;
+                                // this.window_frame = '0;
+                            end else begin // 0 or 1 error (corrected) → stay in MAYBE_LOCKED / advance
+                                this.expected_msg_length = corrected_len[31:16];
+                                this.current_packet_state = PACKET_CONTROL;
+                                this.current_packet_state_byte_counter = 0;
 
                                 // Packet Complete
-                                
-                                this.consecutive_valid_packet_counter++; // Increment the counter of valid packets
-                                // $display("this.consecutive_valid_packet_counter = %0d, this.lock_valid_threshold_value = %0d", this.consecutive_valid_packet_counter, this.lock_valid_threshold_value);
-                                if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin // Check if we have lock_valid_threshold_value correct packets
-                                    this.current_lock_state = LOCKED; // Move to LOCKED
-                                    this.control_word = (this.control_word << 8) | extracted_byte;
+                                this.consecutive_valid_packet_counter++;
+                                if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin
+                                    this.current_lock_state = LOCKED;
                                 end
                             end
                         end
                     end
                     
                     PACKET_CONTROL: begin
-                        this.control_word = (this.control_word << 8) | extracted_byte; // Build the control word
-                        if (this.current_packet_state_byte_counter == rx_verification_pack::CONTROL_AND_CRC_BYTES) begin // Check if we have all the bytes of the control word
+                        if (this.current_packet_state_byte_counter == rx_verification_pack::CONTROL_AND_CRC_BYTES ) begin // Check if we have all the bytes of the control word
                             if (this.expected_msg_length == rx_verification_pack::CONTROL_AND_CRC_BYTES) begin
                                 this.current_packet_state = PACKET_PARITY; // Move to the next state
                             end else begin
@@ -359,24 +384,18 @@ class rx_reference_model extends uvm_component;
                     end
                     
                     PACKET_DATA: begin
-                        // Assemble 32-bit chunk for running XOR
-                        this.data_chunk = (this.data_chunk << 8) | extracted_byte; // Build the data chunk
-                        
                         if (this.current_packet_state_byte_counter % 4 == 0) begin // Check if we have 4 bytes for calculate the running parity
-                            this.running_parity_acc ^= this.data_chunk; // Calculate the running parity
-                            // this.data_chunk = '0; // Reset the data chunk
+                            this.running_parity_acc ^= this.current_word; // Calculate the running parity
                         end
                         
                         if (this.current_packet_state_byte_counter == this.expected_msg_length - rx_verification_pack::CONTROL_AND_CRC_BYTES) begin // Check if we have all the bytes of the data
                             this.current_packet_state = PACKET_PARITY; // Move to the next state
                             this.current_packet_state_byte_counter = 0; // Reset the counter
-                            this.parity_word = '0; // Reset the parity word
                         end
                     end
                     
                     PACKET_PARITY: begin
-                        this.parity_word = (this.parity_word << 8) | extracted_byte; // Build the parity word
-                        if (this.current_packet_state_byte_counter == rx_verification_pack::PARITY_BYTES) begin // Check if we have all the bytes of the parity word
+                        if (this.current_packet_state_byte_counter == rx_verification_pack::PARITY_BYTES ) begin // Check if we have all the bytes of the parity word
                             // // Packet Complete
                             // this.consecutive_valid_packet_counter++; // Increment the counter of valid packets
                             // if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin // Check if we have lock_valid_threshold_value correct packets
@@ -386,34 +405,19 @@ class rx_reference_model extends uvm_component;
                             // Next packet immediately starts at Length Phase again
                             this.current_packet_state = PACKET_LENGTH; // Move to the next state
                             this.current_packet_state_byte_counter = 0; // Reset the counter
-                            this.length_word = '0; // Reset the length word
                         end
                     end
                 endcase
             end
             
             LOCKED: begin
-                byte extracted_byte;
-                
-                // $display("**************locked_phase = %s**************", this.locked_phase);
-                // Align the bit-shifted byte
-                {this.prev_raw_byte, extracted_byte} = {this.prev_raw_byte, incoming_byte} << this.locked_phase;
-                if (this.locked_phase == 0) begin
-                    extracted_byte = incoming_byte;
-                end else begin
-                    bit [15:0] two_bytes = {this.prev_raw_byte, incoming_byte};
-                    extracted_byte = two_bytes[15 - this.locked_phase -: 8]; // TODO: CHECK THIS!!!!
-                end
-                
-                this.prev_raw_byte = incoming_byte;
                 this.current_packet_state_byte_counter++;
 
                 case (this.current_packet_state)
                     PACKET_LENGTH: begin
-                        this.length_word = (this.length_word << 8) | extracted_byte;
                         if (this.current_packet_state_byte_counter == 4) begin
                             int num_errors;
-                            bit [31:0] corrected_len = check_and_correct_errors_len(this.length_word, num_errors);
+                            bit [31:0] corrected_len = check_and_correct_errors_len(this.current_word, num_errors);
                             
                             if (num_errors > 1) begin
                                 // Drop lock entirely
@@ -426,28 +430,26 @@ class rx_reference_model extends uvm_component;
                                 this.expected_msg_length = corrected_len[31:16];
                                 this.current_packet_state = PACKET_CONTROL;
                                 this.current_packet_state_byte_counter = 0;
-                                this.control_word = '0;
                             end
                         end
                     end
                     
                     PACKET_CONTROL: begin
-                        this.control_word = (this.control_word << 8) | extracted_byte;
                         if (this.current_packet_state_byte_counter == rx_verification_pack::CONTROL_AND_CRC_BYTES) begin
                             int num_errors;
-                            bit [31:0] corrected_control = check_and_correct_errors_ctrl(this.control_word, num_errors);
+                            bit [31:0] corrected_control = check_and_correct_errors_ctrl(this.current_word, num_errors);
                             
-                            // if (num_errors > 1) begin
-                            //     // Do NOT send Control Data. But continue flow?
-                            //     // Prompt: "If >2 errors... Do NOT send the control data." (Assuming >1 means 2 or more).
-                            // end else begin
-                            //     bit [15:0] extracted_control_val = corrected_control[31:16];
-                            //     if (extracted_control_val != 0) begin
-                            //         dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH) ctrl_item = new("ctrl_item");
-                            //         ctrl_item.data = extracted_control_val;
-                            //         this.control_export.write(ctrl_item);
-                            //     end
-                            // end
+                            if (num_errors > 1) begin
+                                // Do NOT send Control Data. But continue flow?
+                                // Prompt: "If >2 errors... Do NOT send the control data." (Assuming >1 means 2 or more).
+                            end else begin
+                                bit [15:0] extracted_control_val = corrected_control[31:16];
+                                if (extracted_control_val != 0) begin
+                                    dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH) ctrl_item = new("ctrl_item");
+                                    ctrl_item.data = extracted_control_val;
+                                    this.control_export.write(ctrl_item);
+                                end
+                            end
                             
                             if (this.expected_msg_length == rx_verification_pack::CONTROL_AND_CRC_BYTES) begin
                                 this.current_packet_state = PACKET_PARITY;
@@ -461,34 +463,28 @@ class rx_reference_model extends uvm_component;
                     end
                     
                     PACKET_DATA: begin
-                        // Collect into 32-bit chunk
-                        this.data_chunk = (this.data_chunk << 8) | extracted_byte;
-                        
                         if (this.current_packet_state_byte_counter % 4 == 0) begin
                             // Every 4 bytes, send a 32-bit chunk out
                             dv_monitor_item #(rx_verification_pack::OUTPUT_DATA_WIDTH) temp_data_item = new("temp_data_item");
-                            temp_data_item.data = this.data_chunk;
-                            $display("data written = %h, at %t", this.data_chunk, $time);
+                            temp_data_item.data = this.current_word;
+                          //  $display("data written = %h, at %t", this.current_word, $time);
                             this.output_data_export.write(temp_data_item);
                             
                             // Running XOR
-                            this.running_parity_acc ^= this.data_chunk;
-                            // this.data_chunk = '0;
+                            this.running_parity_acc ^= this.current_word;
                         end
                         
                         if (this.current_packet_state_byte_counter == this.expected_msg_length - rx_verification_pack::CONTROL_AND_CRC_BYTES) begin
                             this.current_packet_state = PACKET_PARITY;
                             this.current_packet_state_byte_counter = 0;
-                            this.parity_word = '0;
                         end
                     end
                     
                     PACKET_PARITY: begin
-                        this.parity_word = (this.parity_word << 8) | extracted_byte;
                         if (this.current_packet_state_byte_counter == 4) begin
                             bit parity_indication;
                             
-                            if ((this.running_parity_acc ^ this.parity_word) == 32'h0) begin
+                            if ((this.running_parity_acc ^ this.current_word) == 32'h0) begin
                                 parity_indication = 1'b0; // 0 if Match/Valid
                             end else begin
                                 parity_indication = 1'b1; // 1 if Error/Invalid
@@ -503,7 +499,6 @@ class rx_reference_model extends uvm_component;
                             // Ready for next packet organically
                             this.current_packet_state = PACKET_LENGTH;
                             this.current_packet_state_byte_counter = 0;
-                            this.length_word = '0;
                         end
                     end
                 endcase

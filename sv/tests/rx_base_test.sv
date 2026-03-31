@@ -47,7 +47,7 @@ class rx_base_test extends uvm_test;
     ------------------------------------------------------------------------------*/
     virtual function void build_phase (uvm_phase phase);
         super.build_phase(phase);
-
+        
         // Printing the hierarchy
         uvm_root::get().enable_print_topology = rx_verification_pack::TOPOLOGY;
 

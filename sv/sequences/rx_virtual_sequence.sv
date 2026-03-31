@@ -110,7 +110,9 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Body.
     -------------------------------------------------------------------------------*/
     task body();
+        bit half_packet_flag = 1;
         lock_valid = 0;
+
         // Randomize the virtual sequence parameters (test_type, lock_type, etc.)
         if(!this.randomize()) begin
             `uvm_fatal(get_name(), "Failed to randomize virtual sequence!")
@@ -118,9 +120,18 @@ class rx_virtual_sequence extends uvm_sequence;
         `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d, transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count), UVM_LOW)
         $display("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d ,transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count);
         //Create Phase
-        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+        if(half_packet_flag) begin
+            $display("Creating half packet");
+            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                 input_data.half_packet == 1;
             })
+            half_packet_flag = 0;
+        end else begin
+            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                input_data.half_packet == 0;
+            })
+        end
+
 
         // Handle Lock Types
         case(lock_type)
@@ -130,6 +141,7 @@ class rx_virtual_sequence extends uvm_sequence;
                     if (test_type == TEST_REAL) begin
                         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                             input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+                            input_data.half_packet == 0;
                         })
                     end else begin
                         `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
@@ -145,13 +157,18 @@ class rx_virtual_sequence extends uvm_sequence;
                 //send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                         is_locked == 1; input_data.length != rx_verification_pack::MIN_DATA_SIZE;
+                        input_data.half_packet == 0;
                     })
             end
             LOCK_PHASE_CHANGE: begin
                 `uvm_info(get_name(), "Executing LOCK_PHASE_CHANGE scenario...", UVM_LOW)
                 // 1 to LVT-1 packets
                 repeat($urandom_range(1, lock_valid_threshold_val - 1)) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
                 
                 // change phase
@@ -161,7 +178,11 @@ class rx_virtual_sequence extends uvm_sequence;
                 
                 // LVT packets
                 repeat(lock_valid_threshold_val) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
                 lock_valid = 1;
             end
@@ -169,35 +190,53 @@ class rx_virtual_sequence extends uvm_sequence;
                 `uvm_info(get_name(), "Executing LOCK_HARD_NOT_LOCKED scenario...", UVM_LOW)
                 // LVT-1 packets
                 repeat(lock_valid_threshold_val - 1) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
                 
                 // 1 packet with length_error
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                      input_data.length_error == 1;
+                     input_data.half_packet == 0;
                 })
                 
                 // LVT packets
                 repeat(lock_valid_threshold_val) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
-                lock_valid = 1;
+
             end
             LOCK_SOFT_NOT_LOCKED: begin
                 `uvm_info(get_name(), "Executing LOCK_SOFT_NOT_LOCKED scenario...", UVM_LOW)
                 // 1 to LVT-1 packets
                 repeat($urandom_range(1, lock_valid_threshold_val - 1)) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
                 
                 // packet with wrong length
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                      input_data.wrong_length == 1;
+                     input_data.half_packet == 0;
                 })
                 
                 // LVT packets
                 repeat(lock_valid_threshold_val) begin
-                     `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
                 end
                 lock_valid = 1;
             end
@@ -213,6 +252,8 @@ class rx_virtual_sequence extends uvm_sequence;
                             repeat(num_msgs) begin
                                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
+                                    input_data.half_packet == 0;
+                                    input_data.wrong_length == 0;
                                 })
                             end
                         end
@@ -228,6 +269,8 @@ class rx_virtual_sequence extends uvm_sequence;
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
                                     input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+                                    input_data.half_packet == 0;
+                                    input_data.wrong_length == 0;
                                 })
                                 end
                                 // 0-100 optimal
@@ -235,18 +278,28 @@ class rx_virtual_sequence extends uvm_sequence;
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                         is_locked == 1;
                                         input_data.length == rx_verification_pack::OPTIMAL_DATA_SIZE;
+                                        input_data.half_packet == 0;
+                                        input_data.wrong_length == 0;
                                     })
                                 end
                                 // 1 that between min-optimal
                                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
                                     input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE + 1 : rx_verification_pack::OPTIMAL_DATA_SIZE - 1]};
+                                    input_data.half_packet == 0;
+                                    input_data.wrong_length == 0;
                                 })
                             end
                         end
                     end
                 end
         endcase
+
+        // ---- End-of-test garbage: send a half packet with corrupted length ----
+        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+            input_data.half_packet == 1;
+        })
+        
     endtask
 
     /*-------------------------------------------------------------------------------

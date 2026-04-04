@@ -110,7 +110,6 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Body.
     -------------------------------------------------------------------------------*/
     task body();
-        bit half_packet_flag = 1;
         lock_valid = 0;
 
         // Randomize the virtual sequence parameters (test_type, lock_type, etc.)
@@ -120,17 +119,11 @@ class rx_virtual_sequence extends uvm_sequence;
         `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d, transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count), UVM_LOW)
         $display("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d ,transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count);
         //Create Phase
-        if(half_packet_flag) begin
+
             $display("Creating half packet");
             `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                 input_data.half_packet == 1;
             })
-            half_packet_flag = 0;
-        end else begin
-            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                input_data.half_packet == 0;
-            })
-        end
 
 
         // Handle Lock Types
@@ -144,7 +137,9 @@ class rx_virtual_sequence extends uvm_sequence;
                             input_data.half_packet == 0;
                         })
                     end else begin
-                        `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                            input_data.half_packet == 0;
+                        })
                     end
                 end
                 lock_valid = 1;
@@ -152,7 +147,9 @@ class rx_virtual_sequence extends uvm_sequence;
             LOCK_ONE_PACKET_OUT: begin
                 `uvm_info(get_name(), "Executing LOCK_ONE_PACKET_OUT scenario...", UVM_LOW)
                 repeat(lock_valid_threshold_val) begin
-                    `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+                    `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                    })
                 end
                 //send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {

@@ -52,10 +52,11 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
         input_data.length % 4 == 0;
     }
 
+    //need to have constraint only for the virtual sequence that send the data 
     constraint half_packet_c {
         input_data.half_packet dist {
-            0 :/ 50,
-            1 :/ 50
+            0 :/ 99,
+            1 :/ 1
         };
     }
 

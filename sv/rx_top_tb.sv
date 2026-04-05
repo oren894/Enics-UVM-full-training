@@ -35,11 +35,14 @@ module rx_top_tb ();
     dv_if #(.DATA_WIDTH(rx_verification_pack::INPUT_DATA_WIDTH))                input_data           (.clk(clk));
     dv_if #(.DATA_WIDTH(rx_verification_pack::OUTPUT_DATA_WIDTH))               output_data          (.clk(clk));
     dv_if #(.DATA_WIDTH(rx_verification_pack::CONTROL_DATA_WIDTH))              control              (.clk(clk));
+    dv_if #(.DATA_WIDTH(rx_verification_pack::PARITY_INDICATOR_WIDTH))          parity_if            (.clk(clk));
 
     bit control_valid_out;
     bit [rx_verification_pack::CONTROL_DATA_WIDTH - 1:0] control_data_out;
     bit output_valid_out;
     bit [rx_verification_pack::OUTPUT_DATA_WIDTH - 1:0] output_data_out;
+    bit parity_not_valid_out;
+    bit parity_valid_out;
 
     /*-------------------------------------------------------------------------------
     -- Module declarations
@@ -62,14 +65,14 @@ module rx_top_tb ();
     
         .control_valid(control.valid),
         .output_valid(output_data.valid),
-        .parity_not_valid(), 
-        .parity_valid()
+        .parity_not_valid(parity_not_valid_out), 
+        .parity_valid(parity_valid_out)
     );
 
     // assign control.data = control_data_out;
     // assign control.valid = control_valid_out;
-
-    
+    assign parity_if.data[0] = parity_not_valid_out;
+    assign parity_if.valid   = parity_valid_out | parity_not_valid_out; 
 
     /*------------------------------------------------------------------------------
     -- Lock Valid Threshold Randomization.
@@ -116,6 +119,7 @@ module rx_top_tb ();
         // lock_valid_threshold interface is now driven locally, no need to pass VIF to agent
         uvm_config_db #(virtual dv_if  #(rx_verification_pack::OUTPUT_DATA_WIDTH))               ::set(null, "uvm_test_top.environment.output_data_agent.*",          "vif", output_data); 
         uvm_config_db #(virtual dv_if  #(rx_verification_pack::CONTROL_DATA_WIDTH))              ::set(null, "uvm_test_top.environment.control_agent.*",              "vif", control); 
+        uvm_config_db #(virtual dv_if  #(rx_verification_pack::PARITY_INDICATOR_WIDTH))          ::set(null, "uvm_test_top.environment.parity_agent.*",               "vif", parity_if); 
     end
 
     /*------------------------------------------------------------------------------

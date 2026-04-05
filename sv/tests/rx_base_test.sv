@@ -63,9 +63,11 @@ class rx_base_test extends uvm_test;
         uvm_config_db #(int)::set(this, "environment.input_data_agent",           "is_active",         UVM_ACTIVE);
         uvm_config_db #(int)::set(this, "environment.output_data_agent",          "is_active",         UVM_ACTIVE);
         uvm_config_db #(int)::set(this, "environment.control_agent",              "is_active",         UVM_ACTIVE);
+        uvm_config_db #(int)::set(this, "environment.parity_agent",               "is_active",         UVM_ACTIVE);
         uvm_config_db #(bit)::set(this, "environment.input_data_agent*",           "is_master",         1'b1);
         uvm_config_db #(bit)::set(this, "environment.output_data_agent*",          "is_master",         1'b0);
         uvm_config_db #(bit)::set(this, "environment.control_agent*",              "is_master",         1'b0);
+        uvm_config_db #(bit)::set(this, "environment.parity_agent*",               "is_master",         1'b0);
 
         $display("hiiii, ", this.get_full_name());
     endfunction

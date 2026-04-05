@@ -493,7 +493,7 @@ class rx_reference_model extends uvm_component;
                             begin
                                 dv_monitor_item #(1) parity_item = new("parity_item");
                                 parity_item.data = parity_indication;
-                                // this.parity_export.write(parity_item);
+                                this.parity_export.write(parity_item);
                             end
                             
                             // Ready for next packet organically

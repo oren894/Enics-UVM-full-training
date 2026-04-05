@@ -35,6 +35,7 @@ package rx_verification_pack;
     localparam int unsigned LOCK_VALID_THRESHOLD_DATA_WIDTH = 16;
     localparam int unsigned OUTPUT_DATA_WIDTH               = 32;
     localparam int unsigned CONTROL_DATA_WIDTH              = 16;
+    localparam int unsigned PARITY_INDICATOR_WIDTH          = 1;
 
     /*------------------------------------------------------------------------------
     -- Input Data Parameters.

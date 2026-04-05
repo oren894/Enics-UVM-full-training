@@ -30,10 +30,12 @@ typedef dv_agent #(.DATA_WIDTH(rx_verification_pack::INPUT_DATA_WIDTH), .SEQUENC
 
 typedef dv_agent #(.DATA_WIDTH(rx_verification_pack::OUTPUT_DATA_WIDTH))               rx_output_data_agent;
 typedef dv_agent #(.DATA_WIDTH(rx_verification_pack::CONTROL_DATA_WIDTH))              rx_control_agent;
+typedef dv_agent #(.DATA_WIDTH(rx_verification_pack::PARITY_INDICATOR_WIDTH))          rx_parity_agent;
 
 // Scoreboards
 typedef rx_scoreboard #(.DATA_WIDTH(rx_verification_pack::OUTPUT_DATA_WIDTH))  rx_output_data_scoreboard;
 typedef rx_scoreboard #(.DATA_WIDTH(rx_verification_pack::CONTROL_DATA_WIDTH)) rx_control_scoreboard;
+typedef rx_scoreboard #(.DATA_WIDTH(rx_verification_pack::PARITY_INDICATOR_WIDTH)) rx_parity_scoreboard;
 
 /*-------------------------------------------------------------------------------
 -- Types & Enums.

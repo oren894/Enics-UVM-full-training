@@ -40,6 +40,8 @@ class rx_environment extends uvm_env;
     rx_reference_model            reference_model = null;
     rx_output_data_scoreboard     output_data_scoreboard = null;
     rx_control_scoreboard         control_scoreboard = null;
+    rx_parity_agent               parity_agent = null;
+    rx_parity_scoreboard          parity_scoreboard = null;
 
     /*-----------------------------------------------------------------------------------
     -- Constructor.
@@ -61,10 +63,14 @@ class rx_environment extends uvm_env;
         $display(" created agent: , ", this.output_data_agent.get_full_name());
         this.control_agent              = rx_control_agent              ::type_id::create("control_agent",              this);
         $display(" created agent: , ", this.control_agent.get_full_name());
+        this.parity_agent               = rx_parity_agent               ::type_id::create("parity_agent",               this);
+        $display(" created agent: , ", this.parity_agent.get_full_name());
         this.virtual_sequencer          = rx_virtual_sequencer          ::type_id::create("virtual_sequencer",          this);
         this.reference_model            = rx_reference_model            ::type_id::create("reference_model",            this);
         this.output_data_scoreboard     = rx_output_data_scoreboard     ::type_id::create("output_data_scoreboard",     this);
         this.control_scoreboard         = rx_control_scoreboard         ::type_id::create("control_scoreboard",         this);
+        this.parity_scoreboard          = rx_parity_scoreboard          ::type_id::create("parity_scoreboard",          this);
+        
     endfunction
 
     /*-----------------------------------------------------------------------------------
@@ -82,10 +88,12 @@ class rx_environment extends uvm_env;
         // Connect the reference model to the scoreboards
         this.reference_model.output_data_export.connect(this.output_data_scoreboard.env_port);
         this.reference_model.control_export.connect(this.control_scoreboard.env_port);
+        this.reference_model.parity_export.connect(this.parity_scoreboard.env_port);
 
         // Connect the output agents to the scoreboarda
         this.output_data_agent.data_export.connect(this.output_data_scoreboard.dut_port);
         this.control_agent.data_export.connect(this.control_scoreboard.dut_port);
+        this.parity_agent.data_export.connect(this.parity_scoreboard.dut_port);
     endfunction
 endclass
 

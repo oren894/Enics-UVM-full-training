@@ -1,7 +1,6 @@
 xrun(64): 25.09-s002: (c) Copyright 1995-2025 Cadence Design Systems, Inc.
-TOOL:	xrun(64)	25.09-s002: Started on Apr 04, 2026 at 22:59:48 IDT
+TOOL:	xrun(64)	25.09-s002: Started on Apr 06, 2026 at 09:18:37 IDT
 /tools/cadence/XCELIUM/25.09.002/tools/bin/64bit/xrun
-	-sv
 	-f list.f
 		+incdir+../dv_agent
 		../sv/rx_verification_pack.sv
@@ -36,7 +35,7 @@ TOOL:	xrun(64)	25.09-s002: Started on Apr 04, 2026 at 22:59:48 IDT
 		../sv/rx_environment.sv
 		../sv/tests/rx_base_test.sv
 		../sv/rx_top_tb.sv
-	-uvm
+	-compile
 xrun: *SE,FILEMIS: Cannot find the provided file ../sv/rx_verification_pack.sv.
 xrun: *SE,FILEMIS: Cannot find the provided file ../rtl/dma_config_pkg.sv.
 xrun: *SE,FILEMIS: Cannot find the provided file ../rtl/dma_crc_pkg.sv.
@@ -69,4 +68,4 @@ xrun: *SE,FILEMIS: Cannot find the provided file ../sv/components/rx_reference_m
 xrun: *SE,FILEMIS: Cannot find the provided file ../sv/rx_environment.sv.
 xrun: *SE,FILEMIS: Cannot find the provided file ../sv/tests/rx_base_test.sv.
 xrun: *SE,FILEMIS: Cannot find the provided file ../sv/rx_top_tb.sv.
-TOOL:	xrun(64)	25.09-s002: Exiting on Apr 04, 2026 at 22:59:48 IDT  (total: 00:00:00)
+TOOL:	xrun(64)	25.09-s002: Exiting on Apr 06, 2026 at 09:18:37 IDT  (total: 00:00:00)

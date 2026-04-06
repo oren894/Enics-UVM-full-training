@@ -135,10 +135,12 @@ class rx_virtual_sequence extends uvm_sequence;
                         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                             input_data.length == rx_verification_pack::MIN_DATA_SIZE;
                             input_data.half_packet == 0;
+                            input_data.wrong_length == 0;
                         })
                     end else begin
                         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                             input_data.half_packet == 0;
+                            input_data.wrong_length == 0;
                         })
                     end
                 end
@@ -149,12 +151,14 @@ class rx_virtual_sequence extends uvm_sequence;
                 repeat(lock_valid_threshold_val) begin
                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                         input_data.half_packet == 0;
+                        input_data.wrong_length == 0;
                     })
                 end
                 //send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                         is_locked == 1; input_data.length != rx_verification_pack::MIN_DATA_SIZE;
                         input_data.half_packet == 0;
+                        input_data.wrong_length == 0;
                     })
             end
             LOCK_PHASE_CHANGE: begin
@@ -198,6 +202,7 @@ class rx_virtual_sequence extends uvm_sequence;
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                      input_data.length_error == 1;
                      input_data.half_packet == 0;
+                     input_data.wrong_length == 0;
                 })
                 
                 // LVT packets

@@ -42,6 +42,8 @@ module dma_rx_parity_check
         parity_check_was_invalid = 1'b0;
         
         // Update running parity when last nibble of word is received during data phase
+        
+        // if (phase_next_data_active && data_nibble_index == 7 && input_valid) begin
         if (fsm_parity_check_enable && phase_next_data_active && data_nibble_index == 7 && input_valid) begin
             if (data_buffer_selector == 1'b0) begin
                 parity_next_running_xor = parity_running_xor ^ (data_buffer_a | (input_data << data_bit_position));
@@ -56,7 +58,7 @@ module dma_rx_parity_check
         end
         
         // Validate parity when packet is complete
-        if (data_next_packet_complete) begin
+        if (data_next_packet_complete && fsm_parity_check_enable) begin
             parity_validation_result = (parity_running_xor == parity_received_signature);
             parity_check_complete = 1'b1;
             // Mark invalid if validation failed

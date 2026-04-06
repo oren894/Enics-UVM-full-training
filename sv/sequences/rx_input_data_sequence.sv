@@ -146,7 +146,7 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
 
         // 1. Pack the item into a bit array
         this.input_data.pack(bit_array);
-        $display("errors (length_error, control_error, parity_error, wrong_length) = %0d %0d %0d %0d", this.input_data.length_error, this.input_data.control_error, this.input_data.parity_error, this.input_data.wrong_length);
+        $display("errors (length_error, control_error, parity_error, wrong_length, length, length_hex , time in ns) = %0d %0d %0d %0d %0d %0h %0t", this.input_data.length_error, this.input_data.control_error, this.input_data.parity_error, this.input_data.wrong_length, this.input_data.length, this.input_data.length, $time / 1000);
         // 2. Handle Half Packet: Strip Headers and Random Data
         if (this.input_data.half_packet) begin
             int header_bits = rx_verification_pack::LENGTH_DATA_WIDTH + 

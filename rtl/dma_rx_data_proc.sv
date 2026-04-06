@@ -90,8 +90,8 @@ module dma_rx_data_proc
         if (fsm_data_processing_enable && (data_next_nibble_counter % 8 == 7)) begin
             data_next_buffer_selector = ~data_buffer_selector;
         end
-        
-        if (data_nibble_counter == LEN_CRC_LENGTH + data_packet_length * 2 + 
+        // if (data_nibble_counter == LEN_CRC_LENGTH + data_packet_length * 2 + 
+        if (fsm_current_state != FSM_NOT_LOCKED && data_nibble_counter == LEN_CRC_LENGTH + data_packet_length * 2 + 
         PARITY_CHECK_LENGTH - 1 && input_valid_reg) begin
             data_next_packet_complete = 1'b1;
             data_next_nibble_counter = 0;

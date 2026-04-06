@@ -42,6 +42,7 @@ class rx_environment extends uvm_env;
     rx_control_scoreboard         control_scoreboard = null;
     rx_parity_agent               parity_agent = null;
     rx_parity_scoreboard          parity_scoreboard = null;
+    rx_coverage                   coverage_subscriber = null;
 
     /*-----------------------------------------------------------------------------------
     -- Constructor.
@@ -70,6 +71,7 @@ class rx_environment extends uvm_env;
         this.output_data_scoreboard     = rx_output_data_scoreboard     ::type_id::create("output_data_scoreboard",     this);
         this.control_scoreboard         = rx_control_scoreboard         ::type_id::create("control_scoreboard",         this);
         this.parity_scoreboard          = rx_parity_scoreboard          ::type_id::create("parity_scoreboard",          this);
+        this.coverage_subscriber        = rx_coverage                   ::type_id::create("coverage_subscriber",        this);
         
     endfunction
 
@@ -89,6 +91,7 @@ class rx_environment extends uvm_env;
         this.reference_model.output_data_export.connect(this.output_data_scoreboard.env_port);
         this.reference_model.control_export.connect(this.control_scoreboard.env_port);
         this.reference_model.parity_export.connect(this.parity_scoreboard.env_port);
+        this.reference_model.coverage_export.connect(this.coverage_subscriber.analysis_export);
 
         // Connect the output agents to the scoreboarda
         this.output_data_agent.data_export.connect(this.output_data_scoreboard.dut_port);

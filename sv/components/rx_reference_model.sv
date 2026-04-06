@@ -42,6 +42,7 @@ class rx_reference_model extends uvm_component;
     uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::OUTPUT_DATA_WIDTH))  output_data_export = null;
     uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH)) control_export = null;
     uvm_analysis_port #(dv_monitor_item #(1))                                        parity_export = null;
+    uvm_analysis_port #(rx_coverage_item)                                            coverage_export = null;
 
     /*-------------------------------------------------------------------------------
     -- Members.
@@ -68,6 +69,11 @@ class rx_reference_model extends uvm_component;
     
     // Packet Phase tracking
     int current_packet_state_byte_counter = 0;
+
+    // Coverage sampling variables
+    int pkt_num_errors_length = 0;
+    int pkt_num_errors_control = 0;
+    bit [15:0] pkt_control_val = 0;
 
     // ---- Byte Counter ----
     // Counts every single byte that write_input_data receives from the monitor.
@@ -258,6 +264,7 @@ class rx_reference_model extends uvm_component;
         this.output_data_export = new("output_data_export", this);
         this.control_export     = new("control_export", this);
         this.parity_export      = new("parity_export", this);
+        this.coverage_export    = new("coverage_export", this);
 
         // Get lock_valid_threshold_val
         if(!uvm_config_db #(int unsigned)::get(null, "*", "lock_valid_threshold_val", this.lock_valid_threshold_value)) begin
@@ -358,6 +365,7 @@ class rx_reference_model extends uvm_component;
                                 // this.window_frame = '0;
                             end else begin // 0 or 1 error (corrected) → stay in MAYBE_LOCKED / advance
                                 this.expected_msg_length = corrected_len[31:16];
+                                this.pkt_num_errors_length = num_errors; // Save for coverage
                                 this.current_packet_state = PACKET_CONTROL;
                                 this.current_packet_state_byte_counter = 0;
 
@@ -372,6 +380,11 @@ class rx_reference_model extends uvm_component;
                     
                     PACKET_CONTROL: begin
                         if (this.current_packet_state_byte_counter == rx_verification_pack::CONTROL_AND_CRC_BYTES ) begin // Check if we have all the bytes of the control word
+                            int num_errors;
+                            bit [31:0] corrected_control = check_and_correct_errors_ctrl(this.current_word, num_errors);
+                            this.pkt_num_errors_control = num_errors; // Save for coverage
+                            this.pkt_control_val = corrected_control[31:16]; // Save for coverage
+
                             if (this.expected_msg_length == rx_verification_pack::CONTROL_AND_CRC_BYTES) begin
                                 this.current_packet_state = PACKET_PARITY; // Move to the next state
                             end else begin
@@ -396,6 +409,20 @@ class rx_reference_model extends uvm_component;
                     
                     PACKET_PARITY: begin
                         if (this.current_packet_state_byte_counter == rx_verification_pack::PARITY_BYTES ) begin // Check if we have all the bytes of the parity word
+                            bit parity_indication;
+                            
+                            if ((this.running_parity_acc ^ this.current_word) == 32'h0) begin
+                                parity_indication = 1'b0; // 0 if Match/Valid
+                            end else begin
+                                parity_indication = 1'b1; // 1 if Error/Invalid
+                            end
+                            
+                            // begin
+                            //     dv_monitor_item #(1) parity_item = new("parity_item");
+                            //     parity_item.data = parity_indication;
+                            //     this.parity_export.write(parity_item);
+                            // end
+                            
                             // // Packet Complete
                             // this.consecutive_valid_packet_counter++; // Increment the counter of valid packets
                             // if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin // Check if we have lock_valid_threshold_value correct packets
@@ -405,6 +432,18 @@ class rx_reference_model extends uvm_component;
                             // Next packet immediately starts at Length Phase again
                             this.current_packet_state = PACKET_LENGTH; // Move to the next state
                             this.current_packet_state_byte_counter = 0; // Reset the counter
+
+                            // Emit coverage item for MAYBE_LOCKED
+                            begin
+                                rx_coverage_item cov_item = new("cov_item");
+                                cov_item.length = this.expected_msg_length;
+                                cov_item.control = this.pkt_control_val;
+                                cov_item.num_errors_length_crc = this.pkt_num_errors_length;
+                                cov_item.num_errors_control_crc = this.pkt_num_errors_control;
+                                cov_item.parity_error = parity_indication;
+                                cov_item.locked_phase = this.locked_phase;
+                                this.coverage_export.write(cov_item);
+                            end
                         end
                     end
                 endcase
@@ -428,6 +467,7 @@ class rx_reference_model extends uvm_component;
                             end else begin
                                 // 0 or 1 error (corrected)
                                 this.expected_msg_length = corrected_len[31:16];
+                                this.pkt_num_errors_length = num_errors; // Save for coverage
                                 this.current_packet_state = PACKET_CONTROL;
                                 this.current_packet_state_byte_counter = 0;
                             end
@@ -442,8 +482,12 @@ class rx_reference_model extends uvm_component;
                             if (num_errors > 1) begin
                                 // Do NOT send Control Data. But continue flow?
                                 // Prompt: "If >2 errors... Do NOT send the control data." (Assuming >1 means 2 or more).
+                                this.pkt_num_errors_control = num_errors; // Save for coverage
+                                this.pkt_control_val = 0;
                             end else begin
                                 bit [15:0] extracted_control_val = corrected_control[31:16];
+                                this.pkt_num_errors_control = num_errors; // Save for coverage
+                                this.pkt_control_val = extracted_control_val; // Save for coverage
                                 if (extracted_control_val != 0) begin
                                     dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH) ctrl_item = new("ctrl_item");
                                     ctrl_item.data = extracted_control_val;
@@ -499,6 +543,18 @@ class rx_reference_model extends uvm_component;
                             // Ready for next packet organically
                             this.current_packet_state = PACKET_LENGTH;
                             this.current_packet_state_byte_counter = 0;
+
+                            // Emit coverage item for LOCKED
+                            begin
+                                rx_coverage_item cov_item = new("cov_item");
+                                cov_item.length = this.expected_msg_length;
+                                cov_item.control = this.pkt_control_val;
+                                cov_item.num_errors_length_crc = this.pkt_num_errors_length;
+                                cov_item.num_errors_control_crc = this.pkt_num_errors_control;
+                                cov_item.parity_error = parity_indication;
+                                cov_item.locked_phase = this.locked_phase;
+                                this.coverage_export.write(cov_item);
+                            end
                         end
                     end
                 endcase

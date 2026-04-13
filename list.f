@@ -37,13 +37,13 @@
 ../sv/sequencers/rx_virtual_sequencer.sv
 ../sv/items/rx_item.sv
 ../sv/items/rx_coverage_item.sv
+../sv/components/rx_coverage.sv
 
 ../sv/sequences/rx_input_data_sequence.sv
 
 ../sv/rx_typedefs.sv
 ../sv/sequences/rx_virtual_sequence.sv
 ../sv/components/rx_reference_model.sv
-../sv/components/rx_coverage.sv
 
 ../sv/rx_environment.sv
 ../sv/tests/rx_base_test.sv

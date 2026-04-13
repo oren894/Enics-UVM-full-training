@@ -88,6 +88,7 @@ module rx_top_tb ();
                 [rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD] :/ 75
             };
         });
+        $display("Lock valid threshold value: %0d", lock_valid_threshold_val);
         
         // Share with environment components
         uvm_config_db #(int unsigned)::set(null, "*", "lock_valid_threshold_val", lock_valid_threshold_val);

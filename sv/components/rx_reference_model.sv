@@ -86,6 +86,15 @@ class rx_reference_model extends uvm_component;
     // Used to align incoming bits against `locked_phase`
     bit [7:0] prev_raw_byte = '0;
 
+
+    /*-------------------------------------------------------------------------------
+    -- Transaction Sequence Tracking Members
+    -------------------------------------------------------------------------------*/
+    seq_state_e trans_seq_state = SEQ_WAIT_EMPTY;
+    
+    int trans_sequence_count = 0;
+    bit ten_transactions_done_flag = 0;
+
     /*-------------------------------------------------------------------------------
     -- CRC Parameters & Functions
     -------------------------------------------------------------------------------*/
@@ -351,6 +360,7 @@ class rx_reference_model extends uvm_component;
                             //     if (consecutive_valid_packet_counter >= lock_valid_threshold_value)
                             //         current_lock_state = LOCKED;
                             // end
+                            
                             // -----------------------------------------------------------------------
                             // OPTION B (ACTIVE) — same tolerance as LOCKED: 0 or 1-bit error corrected;
                             //                     only 2+ errors → NOT_LOCKED
@@ -544,7 +554,38 @@ class rx_reference_model extends uvm_component;
                             this.current_packet_state = PACKET_LENGTH;
                             this.current_packet_state_byte_counter = 0;
 
+                            // ---- Transaction Sequence Logic ----
+                            case (this.trans_seq_state)
+                                SEQ_WAIT_EMPTY: begin
+                                    if (this.expected_msg_length == rx_verification_pack::MIN_DATA_SIZE) begin
+                                    end else if (this.expected_msg_length == rx_verification_pack::OPTIMAL_DATA_SIZE) begin
+                                        this.trans_seq_state = SEQ_WAIT_4K;
+                                    end else begin
+                                        this.trans_sequence_count = 0;
+                                        this.ten_transactions_done_flag = 0;
+                                    end
+                                end
+
+                                SEQ_WAIT_4K: begin
+                                    if (this.expected_msg_length == rx_verification_pack::OPTIMAL_DATA_SIZE) begin
+                                    end else if (this.expected_msg_length > rx_verification_pack::MIN_DATA_SIZE && this.expected_msg_length < rx_verification_pack::OPTIMAL_DATA_SIZE) begin
+                                        this.trans_sequence_count++;
+                                        this.trans_seq_state = SEQ_WAIT_EMPTY;
+                                    end else begin
+                                        this.trans_sequence_count = 0;
+                                        this.ten_transactions_done_flag = 0;
+                                        this.trans_seq_state = SEQ_WAIT_EMPTY;
+                                    end
+                                end
+                            endcase
+
+                            // Sticky: latch to 1 once the threshold is reached, never clear it.
+                            if (this.trans_sequence_count >= 10)
+                                this.ten_transactions_done_flag = 1;
+
                             // Emit coverage item for LOCKED
+                            // Note: ten_transactions_done_flag is NOT included here.
+                            // It is sampled ONCE at end-of-test in extract_phase.
                             begin
                                 rx_coverage_item cov_item = new("cov_item");
                                 cov_item.length = this.expected_msg_length;
@@ -560,6 +601,27 @@ class rx_reference_model extends uvm_component;
                 endcase
             end
         endcase
+    endfunction
+
+    /*-------------------------------------------------------------------------------
+    -- Extract Phase
+    -- Runs ONCE after all test traffic has stopped.
+    -- Emits a single dedicated coverage item carrying only the final sticky value
+    -- of ten_transactions_done_flag so the covergroup samples it exactly once.
+    -------------------------------------------------------------------------------*/
+    virtual function void extract_phase(uvm_phase phase);
+        super.extract_phase(phase);
+        begin
+            rx_coverage_item eot_item = new("eot_coverage_item");
+            // Only ten_transactions_done_flag is meaningful here; all other fields
+            // stay at their default (0) and their coverpoints are unaffected because
+            // those bins are never closed by a single zero-valued sample.
+            eot_item.ten_transactions_done_flag = this.ten_transactions_done_flag;
+            this.coverage_export.write(eot_item);
+            `uvm_info(get_name(), $sformatf(
+                "[EOT] ten_transactions_done_flag = %0b (trans_sequence_count = %0d)",
+                this.ten_transactions_done_flag, this.trans_sequence_count), UVM_LOW)
+        end
     endfunction
 
 endclass

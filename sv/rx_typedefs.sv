@@ -66,4 +66,8 @@ typedef enum int unsigned {
     LOCK_SOFT_NOT_LOCKED
 } rx_lock_type_e;
 
+typedef enum int unsigned {
+    SEQ_WAIT_EMPTY,
+    SEQ_WAIT_4K
+} seq_state_e;
 `endif // __RX_TYPEDEF

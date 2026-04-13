@@ -27,8 +27,9 @@ class rx_coverage_item extends uvm_object;
     bit [15:0] control;
     int        num_errors_length_crc;
     int        num_errors_control_crc;
-    bit        parity_error; // 0 for valid, 1 for invalid
+    bit        parity_error;              // 0 = valid, 1 = invalid
     int        locked_phase;
+    bit        ten_transactions_done_flag; // 1 when >=10 MIN→4K→MID sequences seen
 
     /*-------------------------------------------------------------------------------
     -- UVM Macros.

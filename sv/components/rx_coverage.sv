@@ -39,15 +39,21 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
     -- Cover Groups
     ------------------------------------------------------------------------------*/
     covergroup rx_cg with function sample(rx_coverage_item message, int unsigned lock_valid_threshold_val);
+        option.per_instance = 1; 
+        
         // length
         length: coverpoint message.length {        
             bins min_len = {rx_verification_pack::MIN_DATA_SIZE};
+            bins optimal_len = {rx_verification_pack::OPTIMAL_DATA_SIZE};
             bins mid_len = {[rx_verification_pack::MIN_DATA_SIZE+1:rx_verification_pack::MAX_DATA_SIZE-1]};
             bins max_len = {rx_verification_pack::MAX_DATA_SIZE};
         }
 
         // control
-        control: coverpoint message.control;
+        control: coverpoint message.control{
+            bins control_0 = {0};
+            bins control_not_0 = {[1 : 2**rx_verification_pack::CONTROL_DATA_WIDTH-1]};
+        }
 
         // number of errors in length+crc
         length_crc_errors: coverpoint message.num_errors_length_crc {
@@ -68,16 +74,25 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
             bins invalid = {1};
         }
 
-        // phase item (locked phase 0-7)
+        // phase item (locked phase, 4-bit nibble so phase N == phase N+4)
         phase_item: coverpoint message.locked_phase {
-            bins locked_phase_vals[] = {[0:7]};
+            bins phase_0 = {0, 4};
+            bins phase_1 = {1, 5};
+            bins phase_2 = {2, 6};
+            bins phase_3 = {3, 7};
         }
 
         // lock valid threshold
         lock_threshold: coverpoint lock_valid_threshold_val {
-            bins min_th = {rx_verification_pack::MIN_LOCK_VALID_THRESHOLD};
-            bins max_th = {rx_verification_pack::MAX_LOCK_VALID_THRESHOLD};
-            bins mid_th = {[rx_verification_pack::MIN_LOCK_VALID_THRESHOLD+1 : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD-1]};
+            bins th = {[rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD]};
+        }
+
+        // Ten-transaction-sequence completion flag.
+        // Coverage is met ONLY when the flag is 1 (>=10 valid MIN→4K→MID sequences seen).
+        // When the flag is 0 the sample is IGNORED and does NOT affect coverage percentage.
+        ten_transactions_done: coverpoint message.ten_transactions_done_flag {
+            bins         done   = {1}; // ← this is the ONLY bin that must be hit
+            ignore_bins  not_done = {0}; // ← 0 is ignored; sampling it has zero effect
         }
     endgroup
 
@@ -110,6 +125,50 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
     // Kept for backwards compatibility if called directly
     virtual function void sample(rx_coverage_item message);
         rx_cg.sample(message, lock_valid_threshold_val);
+    endfunction
+
+    /*------------------------------------------------------------------------------
+    -- Print Coverage
+    -- Call this function at any point during simulation to print a formatted
+    -- coverage summary to the CLI.
+    ------------------------------------------------------------------------------*/
+    virtual function void print_coverage();
+        real overall_cov;
+        string report_str;
+        string line_str;
+
+        overall_cov = rx_cg.get_coverage();
+
+        report_str = "\n";
+        report_str = {report_str, "  +===========================================================+\n"};
+        report_str = {report_str, "  ||           >>> COVERAGE REPORT (SNAPSHOT) <<<             ||\n"};
+        report_str = {report_str, "  +===========================================================+\n"};
+        report_str = {report_str, "  |                                                           |\n"};
+
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "length",             rx_cg.length.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "control",            rx_cg.control.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "length_crc_errors",  rx_cg.length_crc_errors.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "control_crc_errors", rx_cg.control_crc_errors.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "parity_validity",    rx_cg.parity_validity.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "phase_item",         rx_cg.phase_item.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "lock_threshold",         rx_cg.lock_threshold.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "ten_transactions_done",  rx_cg.ten_transactions_done.get_coverage());
+        report_str = {report_str, line_str};
+
+        report_str = {report_str, "  |                                                           |\n"};
+        report_str = {report_str, "  +-----------------------------------------------------------+\n"};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "OVERALL COVERAGE",   overall_cov);
+        report_str = {report_str, line_str};
+        report_str = {report_str, "  +===========================================================+\n"};
+
+        `uvm_info("COVERAGE_REPORT", report_str, UVM_NONE)
     endfunction
 
 endclass

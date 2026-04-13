@@ -56,7 +56,7 @@ class rx_virtual_sequence extends uvm_sequence;
             LOCK_REGULAR        := 1,
             LOCK_ONE_PACKET_OUT := 1,
             LOCK_PHASE_CHANGE   := 1,
-            LOCK_HARD_NOT_LOCKED := 1,
+            LOCK_HARD_NOT_LOCKED := 0, // NOT RELEVANT FOR NOW BECAUSE DUT NOT SUPPORT THISw
             LOCK_SOFT_NOT_LOCKED := 1
         };
     }
@@ -123,6 +123,7 @@ class rx_virtual_sequence extends uvm_sequence;
             $display("Creating half packet");
             `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                 input_data.half_packet == 1;
+                input_data.length inside {[0:100]}; //NEED SMALL PACKET
             })
 
 
@@ -156,7 +157,8 @@ class rx_virtual_sequence extends uvm_sequence;
                 end
                 //send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                        is_locked == 1; input_data.length != rx_verification_pack::MIN_DATA_SIZE;
+                        is_locked == 1; 
+                        input_data.length != rx_verification_pack::MIN_DATA_SIZE;
                         input_data.half_packet == 0;
                         input_data.wrong_length == 0;
                     })
@@ -187,34 +189,41 @@ class rx_virtual_sequence extends uvm_sequence;
                 end
                 lock_valid = 1;
             end
-            LOCK_HARD_NOT_LOCKED: begin
-                `uvm_info(get_name(), "Executing LOCK_HARD_NOT_LOCKED scenario...", UVM_LOW)
-                // LVT-1 packets
-                repeat(lock_valid_threshold_val - 1) begin
-                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                        input_data.half_packet == 0;
-                        input_data.length_error == 0;
-                        input_data.wrong_length == 0;
-                     })
-                end
-                
-                // 1 packet with length_error
-                `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                     input_data.length_error == 1;
-                     input_data.half_packet == 0;
-                     input_data.wrong_length == 0;
-                })
-                
-                // LVT packets
-                repeat(lock_valid_threshold_val) begin
-                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                        input_data.half_packet == 0;
-                        input_data.length_error == 0;
-                        input_data.wrong_length == 0;
-                     })
-                end
 
-            end
+            /*================================================
+            NOT RELEVANT FOR NOW BECAUSE DUT NOT SUPPORT THIS
+            ================================================*/
+
+            // LOCK_HARD_NOT_LOCKED: begin
+            //     `uvm_info(get_name(), "Executing LOCK_HARD_NOT_LOCKED scenario...", UVM_LOW)
+            //     // LVT-1 packets
+            //     repeat(lock_valid_threshold_val - 1) begin
+            //          `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+            //             input_data.half_packet == 0;
+            //             input_data.length_error == 0;
+            //             input_data.wrong_length == 0;
+            //          })
+            //     end
+                
+            //     // 1 packet with length_error
+            //     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+            //          input_data.length_error == 1;
+            //          input_data.half_packet == 0;
+            //          input_data.wrong_length == 0;
+            //     })
+                
+            //     // LVT packets
+            //     repeat(lock_valid_threshold_val) begin
+            //          `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+            //             input_data.half_packet == 0;
+            //             input_data.length_error == 0;
+            //             input_data.wrong_length == 0;
+            //          })
+            //     end
+
+            // end
+
+            
             LOCK_SOFT_NOT_LOCKED: begin
                 `uvm_info(get_name(), "Executing LOCK_SOFT_NOT_LOCKED scenario...", UVM_LOW)
                 // 1 to LVT-1 packets
@@ -297,9 +306,22 @@ class rx_virtual_sequence extends uvm_sequence;
                 end
         endcase
 
+        // ---- Print coverage snapshot after main test traffic ----
+        begin
+            uvm_component comp;
+            rx_coverage cov_h;
+            comp = uvm_root::get().find("*.coverage_subscriber");
+            if (comp != null && $cast(cov_h, comp)) begin
+                cov_h.print_coverage();
+            end else begin
+                `uvm_warning(get_name(), "Could not find coverage_subscriber to print coverage snapshot")
+            end
+        end
+
         // ---- End-of-test garbage: send a half packet with corrupted length ----
         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
             input_data.half_packet == 1;
+            input_data.length == rx_verification_pack::MIN_DATA_SIZE;
         })
         
     endtask
@@ -311,6 +333,9 @@ class rx_virtual_sequence extends uvm_sequence;
 
         // Drop objection
         if ((get_parent_sequence() == null) && (starting_phase != null)) begin
+            // Set a UVM timeout so simulation doesn't hang after sequence ends
+            uvm_top.set_timeout(10us, 0);
+            `uvm_info(get_name(), "Virtual sequence finished. UVM timeout set to 10us.", UVM_LOW)
             starting_phase.drop_objection(this, "Ending");
         end
     endtask

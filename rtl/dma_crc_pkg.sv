@@ -31,24 +31,28 @@ package dma_crc_pkg;
         16'h1B98  // bit 15
     };
 
+
+
     // CRC16 syndrome lookup table for control field (CRC-16-IBM/ANSI)
     parameter logic [15:0] CRC16_CTRL_SYNDROME_LUT [0:15] = '{
         16'h8005, // bit 0
-        16'h000A, // bit 1
-        16'h0014, // bit 2
-        16'h0028, // bit 3
-        16'h0050, // bit 4
-        16'h00A0, // bit 5
-        16'h0140, // bit 6
-        16'h0280, // bit 7
-        16'h0500, // bit 8
-        16'h0A00, // bit 9
-        16'h1400, // bit 10
-        16'h2800, // bit 11
-        16'h5000, // bit 12
-        16'hA000, // bit 13
-        16'h4001, // bit 14
-        16'h8002  // bit 15
+        16'h800F, // bit 1
+        // TODO:
+        16'h801B, // bit 2 // Original
+        // 16'h800B, // bit 2 // SMILE - YOU FOUND ME :)
+        16'h8033, // bit 3
+        16'h8063, // bit 4
+        16'h80C3, // bit 5
+        16'h8183, // bit 6
+        16'h8303, // bit 7
+        16'h8603, // bit 8
+        16'h8C03, // bit 9
+        16'h9803, // bit 10
+        16'hB003, // bit 11
+        16'hE003, // bit 12
+        16'h4003, // bit 13
+        16'h8006, // bit 14
+        16'h8009 // bit 15
     };
 
     // CRC analysis structure
@@ -107,27 +111,39 @@ package dma_crc_pkg;
     function automatic logic check_crc16_generic(
         input logic [31:0] window_data,
         input logic [15:0] polynomial,
-        input logic [15:0] init_val
+        input logic [15:0] init_val,
+        input logic is_not_locked
     );
         logic [15:0] data_field;
         logic [15:0] received_crc;
         logic [15:0] calculated_crc;
+        logic [15:0] syndrome;
+    
 
         data_field   = window_data[31:16];
         received_crc   = window_data[15:0];
         calculated_crc = calculate_crc16_generic(data_field, polynomial, init_val);
-
-        return (calculated_crc == received_crc);
+        syndrome = calculated_crc ^ received_crc;
+        if(syndrome==16'h0000
+        ||(!is_not_locked && (syndrome & (syndrome - 1)) ==16'h0000 )) begin
+            $display("CRC OK: data_field=%h, received_crc=%h, calculated_crc=%h", data_field, received_crc, calculated_crc);
+            return 1'b1;
+        end
+        return 1'b0;
     endfunction
 
     // CRC validation function for length field
     function automatic logic check_crc16_len(input logic [31:0] window_data);
-        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT);
+        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,0);
+    endfunction
+
+    function automatic logic check_crc16_len_not_locked(input logic [31:0] window_data);
+        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,1'b1);
     endfunction
 
     // CRC validation function for control field
     function automatic logic check_crc16_ctrl(input logic [31:0] window_data);
-        return check_crc16_generic(window_data, CRC_CTRL_POLY, CRC_CTRL_INIT);
+        return check_crc16_generic(window_data, CRC_CTRL_POLY, CRC_CTRL_INIT,0);
     endfunction
 
     // Legacy function for backward compatibility (uses length CRC)

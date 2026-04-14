@@ -126,7 +126,7 @@ package dma_crc_pkg;
         syndrome = calculated_crc ^ received_crc;
         if(syndrome==16'h0000
         ||(!is_not_locked && (syndrome & (syndrome - 1)) ==16'h0000 )) begin
-            $display("CRC OK: data_field=%h, received_crc=%h, calculated_crc=%h", data_field, received_crc, calculated_crc);
+            // $display("CRC OK: data_field=%h, received_crc=%h, calculated_crc=%h", data_field, received_crc, calculated_crc);
             return 1'b1;
         end
         return 1'b0;
@@ -219,16 +219,20 @@ package dma_crc_pkg;
         r.fix_ok     = hit && (calculate_crc16_generic(r.data_corr, polynomial, init_val) == r.crc_field);
 
         r.ok_raw     = (r.calc_crc == r.crc_field);
-        r.ok_or_fixed= r.ok_raw || r.fix_ok;
+        
 
         r.crc_onebit    = 1'b0;
         r.crc_multibit  = 1'b0;
         if (!r.ok_raw && (r.syndrome != 16'h0000)) begin
-            if ( (r.syndrome & (r.syndrome - 1)) == 16'h0000 )
+            if ( (r.syndrome & (r.syndrome - 1)) == 16'h0000 )begin
                 r.crc_onebit = 1'b1;
-            else
+                r.ok_raw = 1'b1;
+            end
+            else begin
                 r.crc_multibit = 1'b1;
+            end
         end
+        r.ok_or_fixed= r.ok_raw || r.fix_ok;
         return r;
     endfunction
 

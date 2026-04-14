@@ -143,20 +143,20 @@ module dma_rx_len_detect
                 // Fallback (should not occur)
                 len_crc_analysis = crc_check_analyze_word_len(len_sliding_window[31:0]);
             end
-        end
+        
             // len_crc_analysis      = crc_check_analyze_word_len(len_sliding_window[31:0]);
             len_fix_ok            = fsm_is_locked && len_crc_analysis.fix_ok;
             len_crc_ok_or_fixed   = len_crc_analysis.ok_raw || len_fix_ok;
             len_crc_field_one_error = phase_data_length_end && len_crc_analysis.crc_onebit;
             len_multibit_error      = phase_data_length_end && len_crc_analysis.crc_multibit;
-        // end else begin
-        //     // Default values when not in length phase
-        //     len_crc_analysis      = '{default: '0};
-        //     len_fix_ok            = 1'b0;
-        //     len_crc_ok_or_fixed   = 1'b0;
-        //     len_crc_field_one_error = 1'b0;
-        //     len_multibit_error      = 1'b0;
-        // end
+        end else begin
+            // Default values when not in length phase
+            len_crc_analysis      = '{default: '0};
+            len_fix_ok            = 1'b0;
+            len_crc_ok_or_fixed   = 1'b0;
+            len_crc_field_one_error = 1'b0;
+            len_multibit_error      = 1'b0;
+        end
     end
 
     // Extract length, preferring corrected data on aligned boundary when LOCKED

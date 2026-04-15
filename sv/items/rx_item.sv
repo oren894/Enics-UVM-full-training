@@ -128,7 +128,6 @@ class rx_item extends uvm_object;
         bit [rx_verification_pack::LENGTH_DATA_WIDTH + rx_verification_pack::LENGTH_CRC_DATA_WIDTH - 1 : 0] temp_length;
         bit [rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH - 1 : 0] temp_control;
         bit [rx_verification_pack::PARITY_DATA_WIDTH - 1 : 0] temp_parity;
-        bit data_stream[];
         int unsigned p_width = rx_verification_pack::PARITY_DATA_WIDTH;
         int unsigned data_size;
         int unsigned flipped_indices[$]; // Moved here
@@ -147,11 +146,16 @@ class rx_item extends uvm_object;
         end
         
         // Calculate Parity
-        data_stream = { >> {this.data} };
+        // RTL places the first received byte into data_buffer_a MSB, 
+        // the second into the next byte down, etc., so we match that compilation here.
         this.parity = '0;
-        for (int i = 0; i < data_stream.size(); i += p_width) begin
-            bit [rx_verification_pack::PARITY_DATA_WIDTH - 1 : 0] chunk;
-            for(int j=0; j<p_width; j++) chunk[j] = data_stream[i+j];
+        for (int i = 0; i < this.data.size(); i += (p_width / 8)) begin
+            bit [rx_verification_pack::PARITY_DATA_WIDTH - 1 : 0] chunk = '0;
+            for (int j = 0; j < (p_width / 8); j++) begin
+                if (i + j < this.data.size()) begin
+                    chunk[(p_width - 1 - 8*j) -: 8] = this.data[i+j];
+                end
+            end
             this.parity ^= chunk;
         end
 

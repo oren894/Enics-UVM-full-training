@@ -2,3 +2,5 @@ runspace/*
 .vscode/*
 .idea/*
 .cache/*
+.simvision/*
+.bpad/*

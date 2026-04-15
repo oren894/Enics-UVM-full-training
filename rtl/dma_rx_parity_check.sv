@@ -69,7 +69,7 @@ module dma_rx_parity_check
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             parity_running_xor <= 32'h0;
-        end else if (input_valid) begin
+        end else begin
             parity_running_xor <= parity_next_running_xor;
         end
     end

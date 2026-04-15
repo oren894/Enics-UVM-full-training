@@ -142,7 +142,8 @@ class rx_item extends uvm_object;
         data_size = this.length - ((rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH) / 8);
         this.data.delete();
         for (int i=0; i < data_size; i++) begin
-             this.data.push_back($urandom);
+             // this.data.push_back($urandom);
+             this.data.push_back(8'h1);
         end
         
         // Calculate Parity

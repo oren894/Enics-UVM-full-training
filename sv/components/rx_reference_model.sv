@@ -369,10 +369,16 @@ class rx_reference_model extends uvm_component;
                             bit [31:0] corrected_len = check_and_correct_errors_len(this.current_word, num_errors);
 
                             if (num_errors > 1) begin // 2+ errors → drop to NOT_LOCKED
+                                // Emit dummy transition item here to securely report consecutive packets dropped
+                                begin
+                                    rx_coverage_item transition_item = new("transition_item");
+                                    transition_item.is_state_transition = 1;
+                                    transition_item.consecutive_packets_dropped = this.consecutive_valid_packet_counter;
+                                    this.coverage_export.write(transition_item);
+                                end
                                 this.current_lock_state = NOT_LOCKED;
                                 this.consecutive_valid_packet_counter = 0;
                                 this.bytes_accumulated = 0;
-                                // this.window_frame = '0;
                             end else begin // 0 or 1 error (corrected) → stay in MAYBE_LOCKED / advance
                                 this.expected_msg_length = corrected_len[31:16];
                                 this.pkt_num_errors_length = num_errors; // Save for coverage
@@ -383,6 +389,14 @@ class rx_reference_model extends uvm_component;
                                 this.consecutive_valid_packet_counter++;
                                 if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin
                                     this.current_lock_state = LOCKED;
+                                    
+                                    // Emit locked state transition
+                                    begin
+                                        rx_coverage_item transition_item = new("transition_item");
+                                        transition_item.is_state_transition = 1;
+                                        transition_item.got_locked = 1;
+                                        this.coverage_export.write(transition_item);
+                                    end
                                 end
                             end
                         end
@@ -469,6 +483,14 @@ class rx_reference_model extends uvm_component;
                             bit [31:0] corrected_len = check_and_correct_errors_len(this.current_word, num_errors);
                             
                             if (num_errors > 1) begin
+                                // Emit dropped lock state transition
+                                begin
+                                    rx_coverage_item transition_item = new("transition_item");
+                                    transition_item.is_state_transition = 1;
+                                    transition_item.got_out_of_lock = 1;
+                                    this.coverage_export.write(transition_item);
+                                end
+                                
                                 // Drop lock entirely
                                 this.current_lock_state = NOT_LOCKED;
                                 this.consecutive_valid_packet_counter = 0;
@@ -543,11 +565,13 @@ class rx_reference_model extends uvm_component;
                             end else begin
                                 parity_indication = 1'b1; // 1 if Error/Invalid
                             end
-                            
+                            $display("running_parity_acc = %h, current_word = %h, parity_indication = %b, at %t", this.running_parity_acc, this.current_word, parity_indication, $time);
                             begin
+                                
                                 dv_monitor_item #(1) parity_item = new("parity_item");
                                 parity_item.data = parity_indication;
                                 this.parity_export.write(parity_item);
+                                $display("parity_indication = %b, at %t", parity_indication, $time);
                             end
                             
                             // Ready for next packet organically

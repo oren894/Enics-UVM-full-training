@@ -95,8 +95,8 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
 
     constraint parity_error_c {
         input_data.parity_error dist {
-            0 :/ 80,
-            1 :/ 20
+            0 :/ 100,
+            1 :/ 0
         };
     }
     /*-------------------------------------------------------------------------------

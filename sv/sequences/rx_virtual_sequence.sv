@@ -277,6 +277,7 @@ class rx_virtual_sequence extends uvm_sequence;
                             repeat(transaction_count) begin
                                 // 0-1000 packets of min length
                                 repeat($urandom_range(0, 1000)) begin
+
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
                                     input_data.length == rx_verification_pack::MIN_DATA_SIZE;
@@ -286,12 +287,14 @@ class rx_virtual_sequence extends uvm_sequence;
                                 end
                                 // 0-100 optimal
                                 repeat($urandom_range(0, 100)) begin
+
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                         is_locked == 1;
                                         input_data.length == rx_verification_pack::OPTIMAL_DATA_SIZE;
                                         input_data.half_packet == 0;
                                         input_data.wrong_length == 0;
                                     })
+                                    
                                 end
                                 // 1 that between min-optimal
                                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
@@ -333,9 +336,19 @@ class rx_virtual_sequence extends uvm_sequence;
 
         // Drop objection
         if ((get_parent_sequence() == null) && (starting_phase != null)) begin
-            // Set a UVM timeout so simulation doesn't hang after sequence ends
-            uvm_top.set_timeout(10us, 0);
-            `uvm_info(get_name(), "Virtual sequence finished. UVM timeout set to 10us.", UVM_LOW)
+            
+            fork
+                begin
+                    #10us;
+                    // Forcefully stop the simulation using $finish
+                    $display("===============================================================");
+                    $display("Virtual sequence watchdog: Forcefully calling $finish to stop!");
+                    $display("===============================================================");
+                    $finish;
+                end
+            join_none
+            
+            `uvm_info(get_name(), "Virtual sequence finished. Set watchdog to $finish in 10us.", UVM_LOW)
             starting_phase.drop_objection(this, "Ending");
         end
     endtask

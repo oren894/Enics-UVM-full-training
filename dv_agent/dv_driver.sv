@@ -112,6 +112,7 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
     -------------------------------------------------------------------------------*/
     task drive_master();
         bit valid_bit = 0;
+        int cycle_count = 0;
 
         // Driver infinite loop
         forever begin
@@ -135,13 +136,18 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
                 // $display("at time %0t", $time);
                 
 
-                    // Random the valid signal to drive
-                    std::randomize(valid_bit) with {
-                        valid_bit dist {
-                            0 :/ 100 - valid_probability,
-                            1 :/ valid_probability
+                    if (valid_probability == 1) begin
+                        valid_bit = (cycle_count % 4 == 0) ? 1'b1 : 1'b0;
+                        cycle_count++;
+                    end else begin
+                        // Random the valid signal to drive
+                        std::randomize(valid_bit) with {
+                            valid_bit dist {
+                                0 :/ 100 - valid_probability,
+                                1 :/ valid_probability
+                            };
                         };
-                    };
+                    end
                     this.vif.master_cb.valid <= valid_bit;
                     
                     if (valid_bit) begin

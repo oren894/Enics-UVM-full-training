@@ -152,6 +152,9 @@ class rx_base_test extends uvm_test;
 
         // Set generation parameters
         this.parameters = new("parameters");
+        if (!this.parameters.randomize()) begin
+            `uvm_fatal(this.get_full_name(), "Failed to randomize parameters")
+        end
         uvm_config_db #(rx_generation_parameters)::set(this, "*", "parameters", this.parameters);
 
         // Set the agents configuration

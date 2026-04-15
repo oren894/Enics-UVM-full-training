@@ -185,6 +185,7 @@ class rx_item extends uvm_object;
         // Parity
         temp_parity = this.parity;
         if (this.parity_error) begin
+            $display("parity_error = %b, at %t", this.parity_error, $time);
             num_flips = $urandom_range(1, $bits(temp_parity)); 
             if (num_flips % 2 == 0) num_flips++; // Ensure odd number of flips
             for (int i = 0; i < num_flips; i++) begin

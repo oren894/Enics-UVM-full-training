@@ -24,11 +24,6 @@ import uvm_pkg::*;
 
 class rx_generation_parameters extends uvm_object; 
 
-    /*-------------------------------------------------------------------------------
-    -- Number of sequences
-    -------------------------------------------------------------------------------*/
-    int unsigned input_data_seq_num_of_calls = 100;
-
     /*------------------------------------------------------------------------------
     -- Message size probabilities
     ------------------------------------------------------------------------------*/
@@ -36,7 +31,18 @@ class rx_generation_parameters extends uvm_object;
     /*------------------------------------------------------------------------------
     -- Valid and Ready probabilities for the agent
     ------------------------------------------------------------------------------*/
-    int unsigned INPUT_DATA_VALID_PROBABILITY = 50;
+    rand int unsigned INPUT_DATA_VALID_PROBABILITY;
+
+    constraint valid_prob_c {
+        // 1   = Deterministic 1:4 (1-0-0-0 pattern)
+        // 25  = Probabilistic 25% valid per cycle
+        // 100 = Constant 1 (Always valid)
+        INPUT_DATA_VALID_PROBABILITY dist {
+            1   :/ 34,
+            25  :/ 33,
+            100 :/ 33
+        };
+    }
 
     /*-------------------------------------------------------------------------------
     -- Constructor.

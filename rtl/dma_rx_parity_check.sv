@@ -14,6 +14,7 @@ module dma_rx_parity_check
     
     // Phase control inputs
     input logic phase_next_data_active,
+    input logic phase_data_active,
     input logic phase_next_parity_active,
     
     // Data processing inputs
@@ -23,6 +24,7 @@ module dma_rx_parity_check
     input logic [31:0] data_buffer_b,
     input logic data_buffer_selector,
     input logic data_next_packet_complete,
+
     
     // Parity validation outputs
     output logic [31:0] parity_running_xor,
@@ -44,7 +46,7 @@ module dma_rx_parity_check
         // Update running parity when last nibble of word is received during data phase
         
         // if (phase_next_data_active && data_nibble_index == 7 && input_valid) begin
-        if (fsm_parity_check_enable && phase_next_data_active && data_nibble_index == 7 && input_valid) begin
+        if ((fsm_parity_check_enable && phase_next_data_active && data_nibble_index == 7 && input_valid) || (phase_data_active && !phase_next_data_active && input_valid)) begin
             if (data_buffer_selector == 1'b0) begin
                 parity_next_running_xor = parity_running_xor ^ (data_buffer_a | (input_data << data_bit_position));
             end else begin

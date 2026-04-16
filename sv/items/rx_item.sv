@@ -141,9 +141,12 @@ class rx_item extends uvm_object;
         // Calculate Data
         data_size = this.length - ((rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH) / 8);
         this.data.delete();
+        $display("data_size: %d", data_size);
         for (int i=0; i < data_size; i++) begin
-             // this.data.push_back($urandom);
-             this.data.push_back(8'h1);
+            this.data.push_back($urandom);
+            // this.data.push_back(8'hFD);
+            // if (i%4 == 0) this.data.push_back(8'hFD);
+            // else this.data.push_back(8'hFE);
         end
         
         // Calculate Parity
@@ -160,6 +163,12 @@ class rx_item extends uvm_object;
             this.parity ^= chunk;
         end
 
+
+        /*/////////////////////////////////////////////
+        //                  put errors               //
+        /////////////////////////////////////////////*/
+        
+        
         // Length
         temp_length = {this.length, this.length_crc}; 
         if (this.wrong_length) begin
@@ -213,7 +222,7 @@ class rx_item extends uvm_object;
         // $display("control: %h, control_with_crc: %h", this.control, this.new_control_with_crc);
         // Pack Data
         foreach(this.data[i]) begin
-            packer.pack_field_int(this.data[i], 8);
+            packer.pack_field_int(this.data[i], $bits(this.data[i]));
         end
         // Pack Parity
         packer.pack_field_int(this.new_parity, $bits(this.new_parity));

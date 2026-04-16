@@ -45,8 +45,15 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         // length
         length: coverpoint message.length iff (!message.is_state_transition) {        
             bins min_len = {rx_verification_pack::MIN_DATA_SIZE};
+            bins zero_to_1k = {[rx_verification_pack::MIN_DATA_SIZE+1:1023]};
+            bins one_to_2k = {[1024:2047]};
+            bins two_to_3k = {[2048:3071]};
+            bins three_to_4k = {[3072:4095]};
             bins optimal_len = {rx_verification_pack::OPTIMAL_DATA_SIZE};
-            bins mid_len = {[rx_verification_pack::MIN_DATA_SIZE+1:rx_verification_pack::MAX_DATA_SIZE-1]};
+            bins four_to_5k = {[4097:5119]};
+            bins five_to_6k = {[5120:6143]};
+            bins six_to_7k = {[6144:7167]};
+            bins seven_to_max = {[7168:rx_verification_pack::MAX_DATA_SIZE-1]};
             bins max_len = {rx_verification_pack::MAX_DATA_SIZE};
         }
 
@@ -84,7 +91,7 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         }
 
         // lock valid threshold
-        lock_threshold: coverpoint lock_valid_threshold_val iff (!message.is_state_transition) {
+        lock_threshold: coverpoint lock_valid_threshold_val {
             bins th[] = {[rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD]};
         }
 
@@ -101,14 +108,17 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
             bins achieved = {1};
         }
 
-        lock_lost: coverpoint message.got_out_of_lock iff (message.is_state_transition && message.got_out_of_lock == 1) {
-            bins lost = {1};
+        // Categorize dropped events in MAYBE_LOCKED: 
+        // 1 -> Early drop, 2 -> Dropped exactly at LVT-1
+        maybe_dropped_consecutive_count: coverpoint get_drop_category(message.consecutive_packets_dropped, lock_valid_threshold_val) 
+        iff (message.is_state_transition && message.got_locked == 0 && message.consecutive_packets_dropped > 0) {
+            bins went_out_of_maybe_to_not = {1};
+            bins dropped_at_lvt_minus_1   = {2};
+            ignore_bins ignored = {0};
         }
 
-        maybe_dropped_consecutive_count: coverpoint message.consecutive_packets_dropped iff (message.is_state_transition && message.got_locked == 0 && message.got_out_of_lock == 0) {
-            bins none = {0};
-            bins one = {1};
-            bins multiple = {[2:$]};
+        cross_maybe_dropped_lvt: cross maybe_dropped_consecutive_count, lock_threshold {
+            ignore_bins impossible_lvt2_early = binsof(lock_threshold) intersect {1, 2} && binsof(maybe_dropped_consecutive_count) intersect {1};
         }
 
         valid_prob: coverpoint valid_probability {
@@ -118,6 +128,20 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         }
     endgroup
 
+
+    /*------------------------------------------------------------------------------
+    -- Coverage Helper Functions
+    ------------------------------------------------------------------------------*/
+    // Helper function to safely evaluate and categorize drops against lock thresholds
+    function int get_drop_category(int drops, int lvt);
+        if (drops == lvt - 1) begin
+            return 2; // Dropped precisely at LVT-1
+        end else if (drops > 0 && drops < lvt - 1) begin
+            return 1; // Dropped early (between 1 and LVT-2)
+        end else begin
+            return 0; // Ignore / Invalid
+        end
+    endfunction
 
     /*-------------------------------------------------------------------------------
     -- Constructor.
@@ -191,9 +215,9 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         report_str = {report_str, line_str};
         $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "lock_achieved",          rx_cg.lock_achieved.get_coverage());
         report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "lock_lost",              rx_cg.lock_lost.get_coverage());
-        report_str = {report_str, line_str};
         $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "maybe_dropped_consecutive_count",  rx_cg.maybe_dropped_consecutive_count.get_coverage());
+        report_str = {report_str, line_str};
+        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "cross_maybe_dropped_lvt",        rx_cg.cross_maybe_dropped_lvt.get_coverage());
         report_str = {report_str, line_str};
         $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "valid_prob",             rx_cg.valid_prob.get_coverage());
         report_str = {report_str, line_str};

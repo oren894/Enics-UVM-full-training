@@ -34,7 +34,6 @@ class rx_coverage_item extends uvm_object;
     // Custom state tracking metrics
     bit        is_state_transition;        // 1 if this is a dummy packet to record a state drop/lock mid-parsing
     bit        got_locked;
-    bit        got_out_of_lock;
     int        consecutive_packets_dropped; // Consecutive packets parsed successfully before dropping from MAYBE to NO LOCK
 
     /*-------------------------------------------------------------------------------

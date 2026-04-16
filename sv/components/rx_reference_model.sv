@@ -483,15 +483,9 @@ class rx_reference_model extends uvm_component;
                             bit [31:0] corrected_len = check_and_correct_errors_len(this.current_word, num_errors);
                             
                             if (num_errors > 1) begin
-                                // Emit dropped lock state transition
-                                begin
-                                    rx_coverage_item transition_item = new("transition_item");
-                                    transition_item.is_state_transition = 1;
-                                    transition_item.got_out_of_lock = 1;
-                                    this.coverage_export.write(transition_item);
-                                end
+                                `uvm_fatal(get_type_name(), "Lock lost due to >1 errors in length+crc")
                                 
-                                // Drop lock entirely
+                                // Drop lock entirely (unreachable after fatal, but kept for completeness)
                                 this.current_lock_state = NOT_LOCKED;
                                 this.consecutive_valid_packet_counter = 0;
                                 this.bytes_accumulated = 0;

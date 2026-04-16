@@ -120,7 +120,7 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
 
             // Clear master.
             this.vif.master_cb.valid <= 1'b0;
-            this.vif.master_cb.data  <= '0;
+            this.vif.master_cb.data  <= 'x;
 
             // Wait for the next item (req) from the sequencer
             this.seq_item_port.get_next_item(super.req);
@@ -153,7 +153,9 @@ class dv_driver #(parameter int DATA_WIDTH = 4, parameter int SEQUENCE_ITEM_WIDT
                     if (valid_bit) begin
                         this.vif.master_cb.data  <= super.req.data[i*DATA_WIDTH +: DATA_WIDTH];
                         i = i - 1;
-                    end 
+                    end else begin
+                        this.vif.master_cb.data  <= 'x;
+                    end
 
                     // Wait 1 cycle to synchronize.
                     @ (this.vif.master_cb);

@@ -144,9 +144,9 @@ class rx_item extends uvm_object;
         $display("data_size: %d", data_size);
         for (int i=0; i < data_size; i++) begin
             this.data.push_back($urandom);
-            // this.data.push_back(8'h1);
-            // if (i%4 == 0) this.data.push_back(8'h2);
-            // else this.data.push_back(8'h3);
+           // this.data.push_back(8'h1);
+           // if (i%4 == 0) this.data.push_back(8'h2);
+           // else this.data.push_back(8'h3);
         end
         
         // Calculate Parity

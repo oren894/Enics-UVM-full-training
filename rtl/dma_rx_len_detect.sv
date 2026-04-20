@@ -164,10 +164,10 @@ module dma_rx_len_detect
         if(!rst_n) begin
             len_extracted_length <= 16'b0;
         end else begin
-            if (len_valid_offset_0 || len_crc_field_one_error) begin
+            if (fsm_is_locked && (data_nibble_counter == 7) && len_fix_ok) begin
+                len_extracted_length <= len_crc_analysis.data_corr;      
+            end else if (len_valid_offset_0 || len_crc_field_one_error) begin
                 len_extracted_length <= len_crc_analysis.data_raw;              // raw aligned OK
-            end else if (fsm_is_locked && (data_nibble_counter == 7) && len_fix_ok) begin
-                len_extracted_length <= len_crc_analysis.data_corr;               // corrected (data-only)
             end else if (len_valid_offset_1) begin
                 len_extracted_length <= len_sliding_window[32:17];
             end else if (len_valid_offset_2) begin

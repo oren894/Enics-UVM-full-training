@@ -112,20 +112,30 @@ package dma_crc_pkg;
         input logic [31:0] window_data,
         input logic [15:0] polynomial,
         input logic [15:0] init_val,
-        input logic is_not_locked
+        input logic is_not_locked,
+        input logic [15:0] syndrome_lut [0:15]
     );
         logic [15:0] data_field;
         logic [15:0] received_crc;
         logic [15:0] calculated_crc;
         logic [15:0] syndrome;
+        logic is_in_lut;
+        logic [15:0] mask;
     
 
         data_field   = window_data[31:16];
         received_crc   = window_data[15:0];
         calculated_crc = calculate_crc16_generic(data_field, polynomial, init_val);
         syndrome = calculated_crc ^ received_crc;
+        is_in_lut = 1'b0;
+        mask = crc16_cam_data_mask16_generic(syndrome, syndrome_lut, is_in_lut);
+        // $display("CRC: data_field=%h, received_crc=%h, calculated_crc=%h, syndrome=%h", data_field, received_crc, calculated_crc, syndrome);
+        // $display("syndrome and (syndrome - 1) = %h, is_not_locked=%b, is_in_lut=%b", syndrome & (syndrome - 1), is_not_locked, is_in_lut);
         if(syndrome==16'h0000
-        ||(!is_not_locked && (syndrome & (syndrome - 1)) ==16'h0000 )) begin
+        ||(!is_not_locked && 
+            ( ((syndrome & (syndrome - 1)) == 16'h0000) || is_in_lut)
+        ) 
+        ) begin
             // $display("CRC OK: data_field=%h, received_crc=%h, calculated_crc=%h", data_field, received_crc, calculated_crc);
             return 1'b1;
         end
@@ -134,16 +144,16 @@ package dma_crc_pkg;
 
     // CRC validation function for length field
     function automatic logic check_crc16_len(input logic [31:0] window_data);
-        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,0);
+        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,0,CRC16_LEN_SYNDROME_LUT);
     endfunction
 
     function automatic logic check_crc16_len_not_locked(input logic [31:0] window_data);
-        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,1'b1);
+        return check_crc16_generic(window_data, CRC_LEN_POLY, CRC_LEN_INIT,1'b1,CRC16_LEN_SYNDROME_LUT);
     endfunction
 
     // CRC validation function for control field
     function automatic logic check_crc16_ctrl(input logic [31:0] window_data);
-        return check_crc16_generic(window_data, CRC_CTRL_POLY, CRC_CTRL_INIT,0);
+        return check_crc16_generic(window_data, CRC_CTRL_POLY, CRC_CTRL_INIT,0,CRC16_CTRL_SYNDROME_LUT);
     endfunction
 
     // Legacy function for backward compatibility (uses length CRC)
@@ -229,7 +239,11 @@ package dma_crc_pkg;
                 r.ok_raw = 1'b1;
             end
             else begin
-                r.crc_multibit = 1'b1;
+                if (!r.fix_ok) begin
+                    r.crc_multibit = 1'b1;
+                end
+                r.ok_raw = 1'b0;
+                // r.fix_ok = 1'b0; // Removed: this was overwriting the valid CAM hit!
             end
         end
         r.ok_or_fixed= r.ok_raw || r.fix_ok;

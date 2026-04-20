@@ -249,7 +249,7 @@ module dma_rx_top
         .clk(clk),
         .rst_n(rst_n),
         .input_valid(input_valid),
-        .input_data(input_data),
+        .input_data(in_aligned_data),
         .fsm_parity_check_enable(fsm_parity_check_enable),
         .fsm_current_state(fsm_current_state),
         .phase_next_data_active(phase_next_data_active),

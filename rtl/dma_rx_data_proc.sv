@@ -35,6 +35,7 @@ module dma_rx_data_proc
     output logic [4:0] data_bit_position,
     output logic word_ready_out
 );
+ 
     logic word_ready;
     logic word_ready_s1;
 

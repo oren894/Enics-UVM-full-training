@@ -24,6 +24,7 @@ module dma_rx_parity_check
     input logic [31:0] data_buffer_b,
     input logic data_buffer_selector,
     input logic data_next_packet_complete,
+    input logic word_ready_out,
 
     
     // Parity validation outputs
@@ -35,7 +36,19 @@ module dma_rx_parity_check
     output logic parity_not_valid,
     output logic parity_check_was_invalid
 );
+    logic data_next_packet_complete_s1;
+    logic sample_word;
 
+    assign sample_word = fsm_parity_check_enable && phase_data_active && word_ready_out;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            data_next_packet_complete_s1 <= 1'b0;
+        end else begin
+            data_next_packet_complete_s1 <= data_next_packet_complete;
+        end
+    end
+    
     // Running parity calculation
     always_comb begin
         parity_next_running_xor = parity_running_xor;
@@ -46,16 +59,19 @@ module dma_rx_parity_check
         // Update running parity when last nibble of word is received during data phase
         
         // if (phase_next_data_active && data_nibble_index == 7 && input_valid) begin
-        if ((fsm_parity_check_enable && phase_next_data_active && data_nibble_index == 7 && input_valid) || (phase_data_active && !phase_next_data_active && input_valid)) begin
-            if (data_buffer_selector == 1'b0) begin
-                parity_next_running_xor = parity_running_xor ^ (data_buffer_a | (input_data << data_bit_position));
+        if (sample_word) begin
+            // logic [31:0] next_word;
+            if (data_buffer_selector == 1'b1) begin
+                // next_word = data_buffer_a | (input_data << data_bit_position);
+                parity_next_running_xor = parity_running_xor ^ data_buffer_a;
             end else begin
-                parity_next_running_xor = parity_running_xor ^ (data_buffer_b | (input_data << data_bit_position));
+                // next_word = data_buffer_b | (input_data << data_bit_position);
+                parity_next_running_xor = parity_running_xor ^ data_buffer_b;
             end
         end
         
         // Reset parity for next packet
-        if (data_next_packet_complete) begin
+        if (data_next_packet_complete_s1) begin
             parity_next_running_xor = 32'h0;
         end
         

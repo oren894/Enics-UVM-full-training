@@ -267,7 +267,8 @@ module dma_rx_top
         .parity_check_complete(parity_check_complete),
         .parity_not_valid(parity_not_valid),
         .parity_check_was_invalid(parity_check_was_invalid),
-        .phase_data_active(phase_data_active)
+        .phase_data_active(phase_data_active),
+        .word_ready_out(word_ready_out)
     );
 
     // logic [0:15] data_prev_nibble_index;

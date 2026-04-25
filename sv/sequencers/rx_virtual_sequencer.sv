@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_virtual_sequencer.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Virtual sequencer for the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Virtual sequencer acting as a central hub to route sequences to the appropriate physical agent sequencers (input, config, parity).
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,12 +18,18 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_virtual_sequencer extends uvm_sequencer ;
 
     /*-----------------------------------------------------------------------------------
     -- UVM Macros.
     -----------------------------------------------------------------------------------*/
-    `uvm_component_utils(rx_virtual_sequencer)
+    `uvm_component_utils(rx_virtual_sequencer) // Factory registration macro
 
     /*-------------------------------------------------------------------------------
     -- Member

@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_virtual_sequence.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Virtual sequence of the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Virtual sequence coordinating multiple physical sequences (input, configuration, parity) to emulate complex test scenarios.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,7 +18,12 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
-
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_virtual_sequence extends uvm_sequence;
 
     /*-----------------------------------------------------------------------------------
@@ -35,41 +36,48 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Parameters.
     ------------------------------------------------------------------------------*/
     rx_generation_parameters parameters = null;
-    int unsigned lock_valid_threshold_val;
+
+    /*------------------------------------------------------------------------------
+    -- Members.
+    ------------------------------------------------------------------------------*/
+    int unsigned        lock_valid_threshold_val;
+    bit                 the_dut_is_locked;
+    rand rx_test_type_e test_type; // Randomized stimulus field
+    rand rx_lock_type_e lock_type; // Randomized stimulus field
+
     /*------------------------------------------------------------------------------
     -- Nested Sequences.
     ------------------------------------------------------------------------------*/
-    rx_input_data_sequence           input_data_sequence           = null;
-    bit lock_valid;
-    rand rx_test_type_e test_type;
-    rand rx_lock_type_e lock_type;
-
-    constraint test_type_c {
+    rx_input_data_sequence input_data_sequence = null;
+    
+    // Decide if the test would simulate the real scenario or random.
+    constraint test_type_c { // UVM Randomization constraint block
         test_type dist {
-            TEST_REGULAR := 1,
-            TEST_REAL    := 1
+            TEST_REGULAR := this.parameters.RUN_RANDOM_TEST_P,
+            TEST_REAL    := this.parameters.RUN_REAL_TEST_P
         };
     }
 
-    constraint lock_type_c {
+
+    constraint lock_type_c { // UVM Randomization constraint block
         lock_type dist {
-            LOCK_REGULAR        := 1,
-            LOCK_ONE_PACKET_OUT := 1,
-            LOCK_PHASE_CHANGE   := 1,
-            LOCK_HARD_NOT_LOCKED := 0, // NOT RELEVANT FOR NOW BECAUSE DUT NOT SUPPORT THISw
-            LOCK_SOFT_NOT_LOCKED := 1
+            LOCK_REGULAR         := this.parameters.LOCK_REGULAR_TEST_P,
+            LOCK_ONE_PACKET_OUT  := this.parameters.LOCK_ONE_PACKET_OUT_TEST_P,
+            LOCK_PHASE_CHANGE    := this.parameters.LOCK_PHASE_CHANGE_TEST_P,
+            LOCK_SINGLE_BIT_ERR  := this.parameters.LOCK_SINGLE_BIT_ERR_TEST_P, // NOT RELEVANT FOR NOW BECAUSE DUT DO NOT SUPPORT THIS.
+            LOCK_MULTI_BIT_ERR   := this.parameters.LOCK_MULTI_BIT_ERR_TEST_P
         };
     }
 
-    rand int unsigned num_msgs;
-    constraint num_msgs_c {
-        num_msgs inside {[10:100]};
+    rand int unsigned num_msgs; // Randomized stimulus field
+    constraint num_msgs_c { // UVM Randomization constraint block
+        num_msgs inside {[this.parameters.MIN_MESSAGES_IN_REGULAR_TEST : this.parameters.MAX_MESSAGES_IN_REGULAR_TEST]};
     }
 
 
-    rand int unsigned transaction_count;
-    constraint transaction_count_c {
-        transaction_count inside {[1:10]};
+    rand int unsigned transaction_count; // Randomized stimulus field
+    constraint transaction_count_c { // UVM Randomization constraint block
+        transaction_count inside {[this.parameters.MIN_TRANSACTIONS_IN_REAL_TEST : this.parameters.MAX_TRANSACTIONS_IN_REAL_TEST]};
     }
 
     /*-------------------------------------------------------------------------------
@@ -110,31 +118,25 @@ class rx_virtual_sequence extends uvm_sequence;
     -- Body.
     -------------------------------------------------------------------------------*/
     task body();
-        lock_valid = 0;
-
-        // Randomize the virtual sequence parameters (test_type, lock_type, etc.)
-        if(!this.randomize()) begin
-            `uvm_fatal(get_name(), "Failed to randomize virtual sequence!")
-        end
+        the_dut_is_locked = 0;
         `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d, transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count), UVM_LOW)
-        $display("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d ,transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count);
-        //Create Phase
-
-            $display("Creating half packet");
-            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                input_data.half_packet == 1;
-                input_data.length inside {[0:100]}; //NEED SMALL PACKET
-            })
-
+        
+        // Create Phase - sending junk before messages to create the phase in the messages
+        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+            input_data.half_packet == 1; // Removes the header of the message so it would be junk data.
+            input_data.length inside {[this.parameters.MIN_LENGTH_FOR_START_JUNK : this.parameters.MAX_LENGTH_FOR_START_JUNK]}; // Sending small messages.
+        })
 
         // Handle Lock Types
         case(lock_type)
+
+            // The fastest way to lock the dut
             LOCK_REGULAR: begin
                 `uvm_info(get_name(), "Executing LOCK_REGULAR scenario...", UVM_LOW)
                 repeat(lock_valid_threshold_val) begin
                     if (test_type == TEST_REAL) begin
                         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                            input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+                            input_data.length == rx_verification_pack::MIN_DATA_SIZE; // The real scenerio locks with minimum size messages.
                             input_data.half_packet == 0;
                             input_data.wrong_length == 0;
                         })
@@ -145,7 +147,7 @@ class rx_virtual_sequence extends uvm_sequence;
                         })
                     end
                 end
-                lock_valid = 1;
+                the_dut_is_locked = 1;
             end
             LOCK_ONE_PACKET_OUT: begin
                 `uvm_info(get_name(), "Executing LOCK_ONE_PACKET_OUT scenario...", UVM_LOW)
@@ -155,7 +157,7 @@ class rx_virtual_sequence extends uvm_sequence;
                         input_data.wrong_length == 0;
                     })
                 end
-                //send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
+                // Send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                         is_locked == 1; 
                         input_data.length != rx_verification_pack::MIN_DATA_SIZE;
@@ -187,15 +189,15 @@ class rx_virtual_sequence extends uvm_sequence;
                         input_data.wrong_length == 0;
                      })
                 end
-                lock_valid = 1;
+                the_dut_is_locked = 1;
             end
 
             /*================================================
             NOT RELEVANT FOR NOW BECAUSE DUT NOT SUPPORT THIS
             ================================================*/
 
-            // LOCK_HARD_NOT_LOCKED: begin
-            //     `uvm_info(get_name(), "Executing LOCK_HARD_NOT_LOCKED scenario...", UVM_LOW)
+            // LOCK_SINGLE_BIT_ERR: begin
+            //     `uvm_info(get_name(), "Executing LOCK_SINGLE_BIT_ERR scenario...", UVM_LOW)
             //     // LVT-1 packets
             //     repeat(lock_valid_threshold_val - 1) begin
             //          `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
@@ -224,8 +226,8 @@ class rx_virtual_sequence extends uvm_sequence;
             // end
 
             
-            LOCK_SOFT_NOT_LOCKED: begin
-                `uvm_info(get_name(), "Executing LOCK_SOFT_NOT_LOCKED scenario...", UVM_LOW)
+            LOCK_MULTI_BIT_ERR: begin
+                `uvm_info(get_name(), "Executing LOCK_MULTI_BIT_ERR scenario...", UVM_LOW)
                 // 1 to LVT-1 packets
                 repeat($urandom_range(1, lock_valid_threshold_val - 1)) begin
                      `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
@@ -235,7 +237,7 @@ class rx_virtual_sequence extends uvm_sequence;
                      })
                 end
                 
-                // packet with wrong length
+                // Packet with wrong length
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                      input_data.wrong_length == 1;
                      input_data.half_packet == 0;
@@ -249,16 +251,15 @@ class rx_virtual_sequence extends uvm_sequence;
                         input_data.wrong_length == 0;
                      })
                 end
-                lock_valid = 1;
+                the_dut_is_locked = 1;
             end
         endcase
 
         // Handle Test Types
         case(test_type)
-            
                 TEST_REGULAR: begin
                     `uvm_info(get_name(), "Executing TEST_REGULAR scenario...", UVM_LOW)
-                    if(lock_valid == 1) begin
+                    if(the_dut_is_locked == 1) begin
                         if(lock_type!= LOCK_ONE_PACKET_OUT) begin
                             repeat(num_msgs) begin
                                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
@@ -272,11 +273,18 @@ class rx_virtual_sequence extends uvm_sequence;
                 end
                 TEST_REAL: begin
                     `uvm_info(get_name(), "Executing TEST_REAL scenario...", UVM_LOW)
-                    if(lock_valid == 1) begin
+                    if(the_dut_is_locked == 1) begin
                         if(lock_type!= LOCK_ONE_PACKET_OUT) begin
+
+                            int _tx_idx = 0;
                             repeat(transaction_count) begin
+                                //==========================================================
+                                //add counter to dont freeze the script in case of long transactions
+                                //==========================================================
+                                `uvm_info(get_name(), $sformatf("TEST_REAL: Starting transaction %0d / %0d", transaction_count - _tx_idx, transaction_count), UVM_LOW)
+                                _tx_idx++;
                                 // 0-1000 packets of min length
-                                repeat($urandom_range(0, 1000)) begin
+                                repeat($urandom_range(1, 1000)) begin
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
@@ -286,7 +294,7 @@ class rx_virtual_sequence extends uvm_sequence;
                                 })
                                 end
                                 // 0-100 optimal
-                                repeat($urandom_range(0, 100)) begin
+                                repeat($urandom_range(1, 100)) begin
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                         is_locked == 1;
@@ -309,24 +317,11 @@ class rx_virtual_sequence extends uvm_sequence;
                 end
         endcase
 
-        // ---- Print coverage snapshot after main test traffic ----
-        begin
-            uvm_component comp;
-            rx_coverage cov_h;
-            comp = uvm_root::get().find("*.coverage_subscriber");
-            if (comp != null && $cast(cov_h, comp)) begin
-                cov_h.print_coverage();
-            end else begin
-                `uvm_warning(get_name(), "Could not find coverage_subscriber to print coverage snapshot")
-            end
-        end
-
         // ---- End-of-test garbage: send a half packet with corrupted length ----
         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
             input_data.half_packet == 1;
             input_data.length == rx_verification_pack::MIN_DATA_SIZE;
         })
-        
     endtask
 
     /*-------------------------------------------------------------------------------
@@ -336,18 +331,6 @@ class rx_virtual_sequence extends uvm_sequence;
 
         // Drop objection
         if ((get_parent_sequence() == null) && (starting_phase != null)) begin
-            
-            fork
-                begin
-                    #10us;
-                    // Forcefully stop the simulation using $finish
-                    $display("===============================================================");
-                    $display("Virtual sequence watchdog: Forcefully calling $finish to stop!");
-                    $display("===============================================================");
-                    $finish;
-                end
-            join_none
-            
             `uvm_info(get_name(), "Virtual sequence finished. Set watchdog to $finish in 10us.", UVM_LOW)
             starting_phase.drop_objection(this, "Ending");
         end

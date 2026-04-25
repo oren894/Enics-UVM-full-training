@@ -38,6 +38,7 @@
 ../sv/items/rx_item.sv
 ../sv/items/rx_coverage_item.sv
 ../sv/components/rx_coverage.sv
+../sv/rx_report_server.sv
 
 ../sv/sequences/rx_input_data_sequence.sv
 

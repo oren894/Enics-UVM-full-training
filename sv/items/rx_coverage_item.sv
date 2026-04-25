@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_coverage_item.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : EniCS
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -18,6 +18,12 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_coverage_item extends uvm_object;
 
     /*-------------------------------------------------------------------------------
@@ -39,7 +45,7 @@ class rx_coverage_item extends uvm_object;
     /*-------------------------------------------------------------------------------
     -- UVM Macros.
     -------------------------------------------------------------------------------*/
-    `uvm_object_utils(rx_coverage_item)
+    `uvm_object_utils(rx_coverage_item) // Factory registration macro
 
     /*-------------------------------------------------------------------------------
     -- Constructor.

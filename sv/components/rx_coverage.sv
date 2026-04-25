@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_coverage.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : EniCS
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Item to send to the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: UVM coverage subscriber tracking functional coverage of packet properties, phase alignments, lock types, and error scenarios.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -23,12 +19,18 @@ import uvm_pkg::*;
 
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_coverage extends uvm_subscriber #(rx_coverage_item);
 
     /*-----------------------------------------------------------------------------------
     -- UVM Macros.
     -----------------------------------------------------------------------------------*/
-    `uvm_component_utils(rx_coverage)
+    `uvm_component_utils(rx_coverage) // Factory registration macro
 
     /*-------------------------------------------------------------------------------
     -- Members.
@@ -39,6 +41,13 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
     /*------------------------------------------------------------------------------
     -- Cover Groups
     ------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Functional Coverage Model
+    // -----------------------------------------------------------------------------
+    // Defines the coverpoints and crosses required to measure the verification
+    // progress. Ensures that all interesting data combinations, state transitions,
+    // and boundary conditions have been successfully stimulated during the test.
+    // =============================================================================
     covergroup rx_cg with function sample(rx_coverage_item message, int unsigned lock_valid_threshold_val, int unsigned valid_probability);
         option.per_instance = 1; 
         
@@ -64,9 +73,14 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         }
 
         // number of errors in length+crc
-        length_crc_errors: coverpoint message.num_errors_length_crc iff (!message.is_state_transition) {
-            bins zero_errors = {0};
-            bins one_error = {1};
+        // Guard: sample normal packets AND MAYBE→NOT transition items (got_locked==0).
+        //   - Normal packets:              is_state_transition==0  → sampled (0 or 1 errors)
+        //   - MAYBE→NOT drop:             is_state_transition==1, got_locked==0 → sampled (always 2)
+        //   - lock_achieved transition:    is_state_transition==1, got_locked==1 → excluded
+        length_crc_errors: coverpoint message.num_errors_length_crc
+            iff (!message.is_state_transition || (message.is_state_transition && !message.got_locked)) {
+            bins zero_errors        = {0};
+            bins one_error          = {1};
             bins two_or_more_errors = {2};
         }
 
@@ -154,15 +168,23 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
     /*-------------------------------------------------------------------------------
     -- Build Phase
     -------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Build Phase
+    // -----------------------------------------------------------------------------
+    // The UVM build_phase is executed top-down. It is responsible for retrieving
+    // configuration objects from the UVM configuration database, computing local
+    // configuration values, and instantiating lower-level UVM components.
+    // =============================================================================
     virtual function void build_phase(uvm_phase phase);
         rx_generation_parameters parameters;
         super.build_phase(phase);
         if (!uvm_config_db #(int unsigned)::get(null, "*", "lock_valid_threshold_val", this.lock_valid_threshold_val)) begin
             `uvm_fatal(get_type_name(), "Couldn't find lock_valid_threshold_val in config_db")
         end
-        if (uvm_config_db #(rx_generation_parameters)::get(null, "*", "parameters", parameters)) begin
+        if (uvm_config_db #(rx_generation_parameters)::get(this, "", "parameters", parameters)) begin
             this.valid_probability = parameters.INPUT_DATA_VALID_PROBABILITY;
         end else begin
+            `uvm_error(get_type_name(), "Failed to get parameters from config_db, defaulting to 100")
             this.valid_probability = 100;
         end
     endfunction
@@ -179,57 +201,6 @@ class rx_coverage extends uvm_subscriber #(rx_coverage_item);
         rx_cg.sample(message, lock_valid_threshold_val, valid_probability);
     endfunction
 
-    /*------------------------------------------------------------------------------
-    -- Print Coverage
-    -- Call this function at any point during simulation to print a formatted
-    -- coverage summary to the CLI.
-    ------------------------------------------------------------------------------*/
-    virtual function void print_coverage();
-        real overall_cov;
-        string report_str;
-        string line_str;
-
-        overall_cov = rx_cg.get_coverage();
-
-        report_str = "\n";
-        report_str = {report_str, "  +===========================================================+\n"};
-        report_str = {report_str, "  ||           >>> COVERAGE REPORT (SNAPSHOT) <<<             ||\n"};
-        report_str = {report_str, "  +===========================================================+\n"};
-        report_str = {report_str, "  |                                                           |\n"};
-
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "length",             rx_cg.length.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "control",            rx_cg.control.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "length_crc_errors",  rx_cg.length_crc_errors.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "control_crc_errors", rx_cg.control_crc_errors.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "parity_validity",    rx_cg.parity_validity.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "phase_item",         rx_cg.phase_item.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "lock_threshold",         rx_cg.lock_threshold.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "ten_transactions_done",  rx_cg.ten_transactions_done.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "lock_achieved",          rx_cg.lock_achieved.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "maybe_dropped_consecutive_count",  rx_cg.maybe_dropped_consecutive_count.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "cross_maybe_dropped_lvt",        rx_cg.cross_maybe_dropped_lvt.get_coverage());
-        report_str = {report_str, line_str};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "valid_prob",             rx_cg.valid_prob.get_coverage());
-        report_str = {report_str, line_str};
-
-        report_str = {report_str, "  |                                                           |\n"};
-        report_str = {report_str, "  +-----------------------------------------------------------+\n"};
-        $sformat(line_str,        "  |   %-30s : %6.2f%%                |\n", "OVERALL COVERAGE",   overall_cov);
-        report_str = {report_str, line_str};
-        report_str = {report_str, "  +===========================================================+\n"};
-
-        `uvm_info("COVERAGE_REPORT", report_str, UVM_NONE)
-    endfunction
 
 endclass
 

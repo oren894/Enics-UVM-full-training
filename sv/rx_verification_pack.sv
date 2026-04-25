@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_verification_pack.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Verification pack for the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Package containing common constants, parameters, and UVM environment settings used across the RX verification suite.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -48,11 +44,11 @@ package rx_verification_pack;
     /*------------------------------------------------------------------------------
     -- Architecture Data Parameters.
     ------------------------------------------------------------------------------*/
-    localparam int unsigned MIN_DATA_SIZE = 4;
-    localparam int unsigned MAX_DATA_SIZE = 8192;
-    localparam int unsigned OPTIMAL_DATA_SIZE = 4096;
-    localparam int unsigned MIN_LOCK_VALID_THRESHOLD = 2;
-    localparam int unsigned MAX_LOCK_VALID_THRESHOLD = 12;
+    localparam int unsigned MIN_DATA_SIZE               = 4;
+    localparam int unsigned MAX_DATA_SIZE               = 8192;
+    localparam int unsigned OPTIMAL_DATA_SIZE           = 4096;
+    localparam int unsigned MIN_LOCK_VALID_THRESHOLD    = 2;
+    localparam int unsigned MAX_LOCK_VALID_THRESHOLD    = 12;
     localparam int unsigned OPTIMAL_LOCK_VALID_THRESHOLD = 7;
 
     localparam int unsigned SLIDING_WINDOW_WIDTH = LENGTH_DATA_WIDTH + LENGTH_CRC_DATA_WIDTH;
@@ -70,8 +66,14 @@ package rx_verification_pack;
 
     localparam int unsigned PARITY_BYTES                 = PARITY_DATA_WIDTH      / $bits(byte);
 
-
-
+    /*------------------------------------------------------------------------------
+    -- CRC Parameters.
+    ------------------------------------------------------------------------------*/
+    localparam bit [15:0] CRC_LEN_POLY = 16'h1021;
+    localparam bit [15:0] CRC_LEN_INIT = 16'hFFFF;
+    
+    localparam bit [15:0] CRC_CTRL_POLY = 16'h8005;
+    localparam bit [15:0] CRC_CTRL_INIT = 16'h0000;
 endpackage
 
 `endif // __RX_VERIFICATION_PACK

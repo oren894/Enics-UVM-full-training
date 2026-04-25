@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_item.sv
-// Project name : 
-// Author       : 
-// Date Created : 25/12
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Item to send to the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: UVM sequence item representing an RX packet, containing data payload, headers, parity, and constraints for error injection.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,62 +18,64 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_item extends uvm_object;
 
     /*-------------------------------------------------------------------------------
     -- Members.
     -------------------------------------------------------------------------------*/
 
-    rand bit [rx_verification_pack::LENGTH_DATA_WIDTH      - 1 : 0] length = '{default : 0};
-    bit [rx_verification_pack::LENGTH_CRC_DATA_WIDTH  - 1 : 0] length_crc = '{default : 0}; 
-    rand bit [rx_verification_pack::CONTROL_DATA_WIDTH     - 1 : 0] control = '{default : 0}; 
-    bit [rx_verification_pack::CONTROL_CRC_DATA_WIDTH - 1 : 0] control_crc = '{default : 0}; 
-    rand byte data [$] = {}; 
-    rand bit [rx_verification_pack::PARITY_DATA_WIDTH      - 1 : 0] parity = '{default : 0}; 
-    rand bit length_error;
-    rand bit wrong_length;
-    rand bit control_error;
-    rand bit parity_error;
-    bit [rx_verification_pack::LENGTH_DATA_WIDTH   + rx_verification_pack::LENGTH_CRC_DATA_WIDTH   - 1 : 0] new_length_with_crc;
-    bit [rx_verification_pack::CONTROL_DATA_WIDTH  + rx_verification_pack::CONTROL_CRC_DATA_WIDTH  - 1 : 0] new_control_with_crc;
-    bit [rx_verification_pack::PARITY_DATA_WIDTH     - 1 : 0] new_parity;
-    rand bit half_packet;
+    rand bit  [rx_verification_pack::LENGTH_DATA_WIDTH      - 1 : 0]                                               length               = '{default : 0}; // Randomized stimulus field
+    bit       [rx_verification_pack::LENGTH_CRC_DATA_WIDTH  - 1 : 0]                                               length_crc           = '{default : 0}; 
+    rand bit  [rx_verification_pack::CONTROL_DATA_WIDTH     - 1 : 0]                                               control              = '{default : 0}; // Randomized stimulus field
+    bit       [rx_verification_pack::CONTROL_CRC_DATA_WIDTH - 1 : 0]                                               control_crc          = '{default : 0}; 
+    rand byte                                                                                                      data [$]             = {};             // Randomized stimulus field
+    rand bit  [rx_verification_pack::PARITY_DATA_WIDTH      - 1 : 0]                                               parity               = '{default : 0}; // Randomized stimulus field
+    rand bit                                                                                                       length_error;                          // Randomized stimulus field
+    rand bit                                                                                                       wrong_length;                          // Randomized stimulus field
+    rand bit                                                                                                       control_error;                         // Randomized stimulus field
+    rand bit                                                                                                       parity_error;                          // Randomized stimulus field
+    bit       [rx_verification_pack::LENGTH_DATA_WIDTH  + rx_verification_pack::LENGTH_CRC_DATA_WIDTH  - 1 : 0]    new_length_with_crc;
+    bit       [rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH - 1 : 0]    new_control_with_crc;
+    bit       [rx_verification_pack::PARITY_DATA_WIDTH      - 1 : 0]                                               new_parity;
+    rand bit                                                                                                       half_packet;                           // Randomized stimulus field
     /*-------------------------------------------------------------------------------
     -- UVM Macros.
     -------------------------------------------------------------------------------*/
     `uvm_object_utils_begin(rx_item)
 
-        `uvm_field_sarray_int (length,        UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (length_crc,    UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (control,       UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (control_crc,   UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_queue_int  (data,          UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (parity,        UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_int        (length_error,  UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_int        (wrong_length,  UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_int        (control_error, UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_int        (parity_error,  UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (new_length_with_crc, UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (new_control_with_crc, UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_sarray_int (new_parity, UVM_DEFAULT | UVM_NOPACK)
-        `uvm_field_int        (half_packet, UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (length,                        UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (length_crc,                    UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (control,                       UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (control_crc,                   UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_queue_int  (data,                          UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (parity,                        UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_int        (length_error,                  UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_int        (wrong_length,                  UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_int        (control_error,                 UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_int        (parity_error,                  UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (new_length_with_crc,           UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (new_control_with_crc,          UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_sarray_int (new_parity,                    UVM_DEFAULT | UVM_NOPACK)
+        `uvm_field_int        (half_packet,                   UVM_DEFAULT | UVM_NOPACK)
     `uvm_object_utils_end 
 
     /*------------------------------------------------------------------------------
     -- Parameters.
     ------------------------------------------------------------------------------*/
-    rx_generation_parameters parameters;
-    // CRC polynomial and initialization parameters
-    localparam bit [15:0] CRC_LEN_POLY = 16'h1021;
-    localparam bit [15:0] CRC_LEN_INIT = 16'hFFFF;
-    
-    localparam bit [15:0] CRC_CTRL_POLY = 16'h8005;
-    localparam bit [15:0] CRC_CTRL_INIT = 16'h0000;
-
-
-
-    /*-------------------------------------------------------------------------------
-    -- Constructor.
+    rx_generation_parameters parameters;    /*-------------------------------------------------------------------------------
+    -- Constructor
+    -- Initializes the rx_item sequence item object.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   name: String name for the UVM object.
+    ---------------------------------------------------------------------------------
+    -- return: N/A
     -------------------------------------------------------------------------------*/
     function new (string name = "rx_item");
         super.new(name);
@@ -87,7 +85,17 @@ class rx_item extends uvm_object;
     -- CRC Calculation Functions
     -------------------------------------*/
 
-    // Generic CRC16 calculation function
+    /*-------------------------------------------------------------------------------
+    -- Calculate CRC16 Generic
+    -- Generic function to calculate a 16-bit CRC over 16 bits of data.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   data: The 16-bit data to calculate CRC for.
+    --   polynomial: The CRC polynomial.
+    --   init_val: The initial value for the CRC calculation.
+    ---------------------------------------------------------------------------------
+    -- return: The calculated 16-bit CRC value.
+    -------------------------------------------------------------------------------*/
     function logic [15:0] calculate_crc16_generic(
         input logic [15:0] data,
         input logic [15:0] polynomial,
@@ -109,19 +117,41 @@ class rx_item extends uvm_object;
         return crc;
     endfunction
 
-    // CRC16 calculation function for length field
+    /*-------------------------------------------------------------------------------
+    -- Calculate CRC16 Len
+    -- Specific CRC calculation for the length field using the length polynomial.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   data: The 16-bit length data to calculate CRC for.
+    ---------------------------------------------------------------------------------
+    -- return: The calculated 16-bit CRC value.
+    -------------------------------------------------------------------------------*/
     function logic [15:0] calculate_crc16_len(input logic [15:0] data);
-        return calculate_crc16_generic(data, CRC_LEN_POLY, CRC_LEN_INIT);
+        return calculate_crc16_generic(data, rx_verification_pack::CRC_LEN_POLY, rx_verification_pack::CRC_LEN_INIT);
     endfunction
 
-    // CRC16 calculation function for control field
+    /*-------------------------------------------------------------------------------
+    -- Calculate CRC16 Ctrl
+    -- Specific CRC calculation for the control field using the control polynomial.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   data: The 16-bit control data to calculate CRC for.
+    ---------------------------------------------------------------------------------
+    -- return: The calculated 16-bit CRC value.
+    -------------------------------------------------------------------------------*/
     function logic [15:0] calculate_crc16_ctrl(input logic [15:0] data);
-        return calculate_crc16_generic(data, CRC_CTRL_POLY, CRC_CTRL_INIT);
+        return calculate_crc16_generic(data, rx_verification_pack::CRC_CTRL_POLY, rx_verification_pack::CRC_CTRL_INIT);
     endfunction
 
-    /*-------------------------------------
+    /*-------------------------------------------------------------------------------
     -- Post Randomize
-    -------------------------------------*/
+    -- Automatically calculates CRCs, data payloads, and parity after UVM randomization, 
+    -- and conditionally injects errors based on generated error flags.
+    ---------------------------------------------------------------------------------
+    -- args: N/A
+    ---------------------------------------------------------------------------------
+    -- return: N/A
+    -------------------------------------------------------------------------------*/
     function void post_randomize();
         int unsigned bit_index;
         int unsigned num_flips;
@@ -141,12 +171,8 @@ class rx_item extends uvm_object;
         // Calculate Data
         data_size = this.length - ((rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH) / 8);
         this.data.delete();
-        $display("data_size: %d", data_size);
         for (int i=0; i < data_size; i++) begin
             this.data.push_back($urandom);
-           // this.data.push_back(8'h1);
-           // if (i%4 == 0) this.data.push_back(8'h2);
-           // else this.data.push_back(8'h3);
         end
         
         // Calculate Parity
@@ -199,7 +225,6 @@ class rx_item extends uvm_object;
         // Parity
         temp_parity = this.parity;
         if (this.parity_error) begin
-            $display("parity_error = %b, at %t", this.parity_error, $time);
             num_flips = $urandom_range(1, $bits(temp_parity)); 
             if (num_flips % 2 == 0) num_flips++; // Ensure odd number of flips
             for (int i = 0; i < num_flips; i++) begin
@@ -210,30 +235,38 @@ class rx_item extends uvm_object;
         this.new_parity = temp_parity;
     endfunction
 
-    /*-------------------------------------
-    -- Do pack
-    -------------------------------------*/
+    /*-------------------------------------------------------------------------------
+    -- Do Pack
+    -- Serializes the sequence item fields (length, control, data, parity) into a 
+    -- bitstream using the standard UVM packer.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   packer: The UVM packer object used to construct the bitstream.
+    ---------------------------------------------------------------------------------
+    -- return: N/A
+    -------------------------------------------------------------------------------*/
     virtual function void do_pack(uvm_packer packer);
         // 1. Construct stream of current item fields
         // Normal: Pack Length, Control, Data, Parity.
         packer.pack_field_int(this.new_length_with_crc, $bits(this.new_length_with_crc));
-        // $display("length: %h, length_with_crc: %h", this.length, this.new_length_with_crc);
         packer.pack_field_int(this.new_control_with_crc, $bits(this.new_control_with_crc));
-        // $display("control: %h, control_with_crc: %h", this.control, this.new_control_with_crc);
         // Pack Data
         foreach(this.data[i]) begin
             packer.pack_field_int(this.data[i], $bits(this.data[i]));
         end
         // Pack Parity
         packer.pack_field_int(this.new_parity, $bits(this.new_parity));
-        // $display("length_with_crc: %h", this.new_length_with_crc);
-        // $display("control_with_crc: %h", this.new_control_with_crc);
-        // $display("data: %h", this.data);
-        // $display("parity: %h", this.new_parity);
     endfunction
 
     /*-------------------------------------------------------------------------------
-    -- Do unpack
+    -- Do Unpack
+    -- Deserializes a bitstream into the sequence item fields (length, control, data, 
+    -- parity) using the standard UVM packer.
+    ---------------------------------------------------------------------------------
+    -- args:
+    --   packer: The UVM packer object providing the bitstream.
+    ---------------------------------------------------------------------------------
+    -- return: N/A
     -------------------------------------------------------------------------------*/
     virtual function void do_unpack(uvm_packer packer);
         int unsigned data_length = (packer.get_packed_size() - rx_verification_pack::LENGTH_DATA_WIDTH

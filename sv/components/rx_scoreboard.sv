@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_scoreboard.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Scoreboard for the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: UVM scoreboard comparing observed output transactions from the RX DUT against predicted transactions from the reference model.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -38,8 +34,8 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
     `uvm_component_param_utils(rx_scoreboard #(DATA_WIDTH))
 
     /*-- Ports --------------------------------------------------------------------*/
-    uvm_analysis_imp_env #(dv_monitor_item #(DATA_WIDTH), rx_scoreboard #(DATA_WIDTH)) env_port = null;
-    uvm_analysis_imp_dut #(dv_monitor_item #(DATA_WIDTH), rx_scoreboard #(DATA_WIDTH)) dut_port = null;
+    uvm_analysis_imp_env #(dv_monitor_item #(DATA_WIDTH), rx_scoreboard #(DATA_WIDTH)) env_port = null; // Inbound TLM analysis export for receiving transactions
+    uvm_analysis_imp_dut #(dv_monitor_item #(DATA_WIDTH), rx_scoreboard #(DATA_WIDTH)) dut_port = null; // Inbound TLM analysis export for receiving transactions
 
     /*------------------------------------------------------------------------------
     -- Members.
@@ -68,7 +64,6 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
 
         // Try to compare the items
         void'(this.compare());
-      //  $display("env_items size = %0d", this.env_items.size());
     endfunction
 
     /*-------------------------------------------------------------------------------
@@ -94,9 +89,6 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
         dv_monitor_item #(DATA_WIDTH) env_item;
         dv_monitor_item #(DATA_WIDTH) dut_item;
 
-        // $display("env_items size 2 = %0d", this.env_items.size());
-        // $display("dut_items size 2 = %0d", this.dut_items.size());
-
         // If both queues are not empty
         if(this.env_items.size() > 0 && this.dut_items.size() > 0) begin
 
@@ -107,13 +99,13 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
             // Compare the items
             if(env_item.compare(dut_item)) begin
                 this.item_compared++;
-             //   `uvm_info(this.get_full_name(), $sformatf("%0d Items compare succeeded", this.item_compared), UVM_LOW)
+            //    `uvm_info(this.get_full_name(), $sformatf("%0d Items compare succeeded", this.item_compared), UVM_LOW)
 
             // If the items are not the same, print them and raise a fatal
             end else begin
                 env_item.print();
                 dut_item.print();
-                `uvm_fatal(this.get_full_name(), "--------------------Misscompare--------------------");
+                `uvm_fatal(this.get_full_name(), $sformatf("--------------------Misscompare-------------------- the number of items compared before %0d", this.item_compared));
             end
         end
     endfunction
@@ -144,6 +136,13 @@ class rx_scoreboard #(parameter int DATA_WIDTH = 4) extends uvm_scoreboard;
     /*-------------------------------------------------------------------------------
     -- Build Phase
     -------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Build Phase
+    // -----------------------------------------------------------------------------
+    // The UVM build_phase is executed top-down. It is responsible for retrieving
+    // configuration objects from the UVM configuration database, computing local
+    // configuration values, and instantiating lower-level UVM components.
+    // =============================================================================
     virtual function void build_phase (uvm_phase phase);
         super.build_phase(phase);
 

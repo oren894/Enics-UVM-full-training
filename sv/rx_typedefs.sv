@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    : rx_typedef.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// File name    : rx_typedefs.sv
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Typedef file for the rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Package containing type definitions, enums, and structured data types used by the RX sequences, items, and RTL.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -62,8 +58,8 @@ typedef enum int unsigned {
     LOCK_REGULAR,
     LOCK_ONE_PACKET_OUT,
     LOCK_PHASE_CHANGE,
-    LOCK_HARD_NOT_LOCKED,
-    LOCK_SOFT_NOT_LOCKED
+    LOCK_SINGLE_BIT_ERR,
+    LOCK_MULTI_BIT_ERR
 } rx_lock_type_e;
 
 typedef enum int unsigned {

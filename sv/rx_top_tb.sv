@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_top_tb.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Top tb for the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments: 
+// Description: Top-level testbench module instantiating the RX DUT, UVM environment, and executing the clock generation and interface wiring.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -69,8 +65,7 @@ module rx_top_tb ();
         .parity_valid(parity_valid_out)
     );
 
-    // assign control.data = control_data_out;
-    // assign control.valid = control_valid_out;
+
     assign parity_if.data[0] = parity_not_valid_out;
     assign parity_if.valid   = parity_valid_out | parity_not_valid_out; 
 
@@ -84,8 +79,8 @@ module rx_top_tb ();
         void'(std::randomize(lock_valid_threshold_val) with { 
             lock_valid_threshold_val inside {[rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD]};
             lock_valid_threshold_val dist {
-                rx_verification_pack::OPTIMAL_LOCK_VALID_THRESHOLD                      :/ 25, 
-                [rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD] :/ 75
+                rx_verification_pack::OPTIMAL_LOCK_VALID_THRESHOLD                      := 25, 
+                [rx_verification_pack::MIN_LOCK_VALID_THRESHOLD : rx_verification_pack::MAX_LOCK_VALID_THRESHOLD] := 75
             };
         });
         $display("Lock valid threshold value: %0d", lock_valid_threshold_val);
@@ -138,13 +133,7 @@ module rx_top_tb ();
         FSM_LOCKED,
         FSM_FATAL
     } fsm_state_t;
-    
-    initial begin
-        wait(dut.fsm_current_state == FSM_LOCKED);
-        $display("FSM is locked at time %0t", $time);
-        #1000;
-       // $finish;
-    end
+
 endmodule
 
 `endif // __RX_TOP_TB

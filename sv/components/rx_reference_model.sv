@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_reference_model.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : EniCS
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Item to send to the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: UVM reference model implementing a transaction-level predictor of the RX DUT behavior and FSM lock states.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -23,12 +19,18 @@ import uvm_pkg::*;
 
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_reference_model extends uvm_component;
 
     /*-----------------------------------------------------------------------------------
     -- UVM Macros.
     -----------------------------------------------------------------------------------*/
-    `uvm_component_utils(rx_reference_model)
+    `uvm_component_utils(rx_reference_model) // Factory registration macro
 
     /*-------------------------------------------------------------------------------
     -- Ports Declarations.
@@ -36,13 +38,13 @@ class rx_reference_model extends uvm_component;
     `uvm_analysis_imp_decl(_input_data)
     
     // Input
-    uvm_analysis_imp_input_data #(dv_monitor_item #(rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH), rx_reference_model) input_data_port = null; 
+    uvm_analysis_imp_input_data #(dv_monitor_item #(rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH), rx_reference_model) input_data_port = null; // Inbound TLM analysis export for receiving transactions
     
     // Output
-    uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::OUTPUT_DATA_WIDTH))  output_data_export = null;
-    uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH)) control_export = null;
-    uvm_analysis_port #(dv_monitor_item #(1))                                        parity_export = null;
-    uvm_analysis_port #(rx_coverage_item)                                            coverage_export = null;
+    uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::OUTPUT_DATA_WIDTH))  output_data_export = null; // Outbound TLM analysis port for broadcasting transactions
+    uvm_analysis_port #(dv_monitor_item #(rx_verification_pack::CONTROL_DATA_WIDTH)) control_export = null; // Outbound TLM analysis port for broadcasting transactions
+    uvm_analysis_port #(dv_monitor_item #(1))                                        parity_export = null; // Outbound TLM analysis port for broadcasting transactions
+    uvm_analysis_port #(rx_coverage_item)                                            coverage_export = null; // Outbound TLM analysis port for broadcasting transactions
 
     /*-------------------------------------------------------------------------------
     -- Members.
@@ -175,20 +177,15 @@ class rx_reference_model extends uvm_component;
     -------------------------------------------------------------------------------*/
     virtual function bit is_there_a_valid_phase(output int phase_found);
         bit [rx_verification_pack::SLIDING_WINDOW_WIDTH-1:0] sliding_window = '0;
-        // $display("window_frame = %h", this.window_frame);
         // Check all the phases (every phase is a shift of the window 1 bit right)
         for (int phase = 0; phase < $bits(byte); phase++) begin
-            //$display("window_frame = %h", window_frame);
-
             // Save the sliding window of the current phase.
             sliding_window = window_frame[rx_verification_pack::FRAME_WIDTH-1-phase -: rx_verification_pack::SLIDING_WINDOW_WIDTH];
-         //   $display("sliding_window = %h time = %t", sliding_window, $time);
             // Check if the CRC is correct.
             if (is_len_crc_correct(
                 .length(sliding_window[rx_verification_pack::SLIDING_WINDOW_WIDTH-1 -: rx_verification_pack::LENGTH_DATA_WIDTH]),
                 .received_crc(sliding_window[rx_verification_pack::LENGTH_CRC_DATA_WIDTH-1 : 0])
             )) begin
-             //   $display("sliding_window = %h time = %t", sliding_window, $time);
 
                 // The crc was correct, so we are locked and save the phase.
                 phase_found = phase;
@@ -265,6 +262,13 @@ class rx_reference_model extends uvm_component;
     /*-------------------------------------------------------------------------------
     -- Build Phase.
     -------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Build Phase
+    // -----------------------------------------------------------------------------
+    // The UVM build_phase is executed top-down. It is responsible for retrieving
+    // configuration objects from the UVM configuration database, computing local
+    // configuration values, and instantiating lower-level UVM components.
+    // =============================================================================
     virtual function void build_phase (uvm_phase phase);
         super.build_phase(phase);
 
@@ -305,7 +309,10 @@ class rx_reference_model extends uvm_component;
         // Unconditionally update the sliding window and previous byte outside the case
         this.current_word = (this.current_word << 8) | extracted_byte;
         this.prev_raw_byte = incoming_byte;
-
+        
+        // Shift the new byte into the window
+        this.shift_window(incoming_byte);
+        
         //  Checking the current lock stage of the model
         case (this.current_lock_state)
             
@@ -313,7 +320,7 @@ class rx_reference_model extends uvm_component;
             NOT_LOCKED: begin
                 
                 // Shift the new byte into the window
-                this.shift_window(incoming_byte);
+                //this.shift_window(incoming_byte);
                 
                 // Check if we have enough bytes to check for a lock
                 if (this.bytes_accumulated < rx_verification_pack::FRAME_WIDTH_IN_BYTES-1) begin
@@ -372,13 +379,27 @@ class rx_reference_model extends uvm_component;
                                 // Emit dummy transition item here to securely report consecutive packets dropped
                                 begin
                                     rx_coverage_item transition_item = new("transition_item");
-                                    transition_item.is_state_transition = 1;
+                                    transition_item.is_state_transition       = 1;
                                     transition_item.consecutive_packets_dropped = this.consecutive_valid_packet_counter;
+                                    transition_item.num_errors_length_crc     = num_errors; // always 2 here – needed by length_crc_errors coverpoint
                                     this.coverage_export.write(transition_item);
                                 end
                                 this.current_lock_state = NOT_LOCKED;
                                 this.consecutive_valid_packet_counter = 0;
-                                this.bytes_accumulated = 0;
+                                //this.bytes_accumulated = 0;
+
+                                // Immediately check if the current window contains a new valid phase
+                                // so we don't have to wait for another incoming byte to try locking again.
+                                if (is_there_a_valid_phase(this.locked_phase)) begin
+                                    this.current_lock_state   = MAYBE_LOCKED;
+                                    this.current_packet_state = PACKET_CONTROL;
+                                    this.current_packet_state_byte_counter   = 0;
+                                    this.consecutive_valid_packet_counter = 1;
+                                    
+                                    // Extract the len+crc word at the newly found locked offset
+                                    sliding_window = this.window_frame[rx_verification_pack::FRAME_WIDTH-1-this.locked_phase -: rx_verification_pack::SLIDING_WINDOW_WIDTH];
+                                    this.expected_msg_length = int'(sliding_window[rx_verification_pack::SLIDING_WINDOW_WIDTH-1 -: rx_verification_pack::LENGTH_DATA_WIDTH]);
+                                end
                             end else begin // 0 or 1 error (corrected) → stay in MAYBE_LOCKED / advance
                                 this.expected_msg_length = corrected_len[31:16];
                                 this.pkt_num_errors_length = num_errors; // Save for coverage
@@ -488,8 +509,8 @@ class rx_reference_model extends uvm_component;
                                 // Drop lock entirely (unreachable after fatal, but kept for completeness)
                                 this.current_lock_state = NOT_LOCKED;
                                 this.consecutive_valid_packet_counter = 0;
-                                this.bytes_accumulated = 0;
-                                this.window_frame = '0;
+                                //this.bytes_accumulated = 0;
+                                //this.window_frame = '0;
                             end else begin
                                 // 0 or 1 error (corrected)
                                 this.expected_msg_length = corrected_len[31:16];
@@ -537,7 +558,6 @@ class rx_reference_model extends uvm_component;
                             // Every 4 bytes, send a 32-bit chunk out
                             dv_monitor_item #(rx_verification_pack::OUTPUT_DATA_WIDTH) temp_data_item = new("temp_data_item");
                             temp_data_item.data = this.current_word;
-                          //  $display("data written = %h, at %t", this.current_word, $time);
                             this.output_data_export.write(temp_data_item);
                             
                             // Running XOR
@@ -559,13 +579,10 @@ class rx_reference_model extends uvm_component;
                             end else begin
                                 parity_indication = 1'b1; // 1 if Error/Invalid
                             end
-                            $display("running_parity_acc = %h, current_word = %h, parity_indication = %b, at %t", this.running_parity_acc, this.current_word, parity_indication, $time);
                             begin
-                                
                                 dv_monitor_item #(1) parity_item = new("parity_item");
                                 parity_item.data = parity_indication;
                                 this.parity_export.write(parity_item);
-                                $display("parity_indication = %b, at %t", parity_indication, $time);
                             end
                             
                             // Ready for next packet organically
@@ -627,6 +644,12 @@ class rx_reference_model extends uvm_component;
     -- Emits a single dedicated coverage item carrying only the final sticky value
     -- of ten_transactions_done_flag so the covergroup samples it exactly once.
     -------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Extract Phase
+    // -----------------------------------------------------------------------------
+    // Executed after the run_phase completes. Used to extract final statistical
+    // data, error counts, and scoreboard metrics for final evaluation.
+    // =============================================================================
     virtual function void extract_phase(uvm_phase phase);
         super.extract_phase(phase);
         begin

@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_base_test.sv
-// Project name : 
-// Author       : 
-// Date Created : 12/2025
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Base test for the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Base UVM test class providing the foundation for all RX tests, configuring the environment and initiating the virtual sequence.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,96 +18,12 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
-class rx_report_server extends uvm_report_server;
-
-    int custom_id_count[string];
-
-    // Intercept messages to safely build our own accessible ID database
-    virtual function void process_report(
-        uvm_severity severity,
-        string name,
-        string id,
-        string message,
-        uvm_action action,
-        UVM_FILE file,
-        string filename,
-        int line,
-        string composed_message,
-        int verbosity_level,
-        uvm_report_object client
-        );
-        
-        if (custom_id_count.exists(id)) begin
-            custom_id_count[id]++;
-        end else begin
-            custom_id_count[id] = 1;
-        end
-        
-        super.process_report(severity, name, id, message, action, file, filename, line, composed_message, verbosity_level, client);
-    endfunction
-
-    virtual function void summarize(UVM_FILE file = 0);
-        int err_count;
-        int fatal_count;
-        string banner;
-        string output_str;
-
-        uvm_report_catcher::summarize_report_catcher(file);
-
-        err_count = this.get_severity_count(UVM_ERROR);
-        fatal_count = this.get_severity_count(UVM_FATAL);
-
-        banner = "\n";
-        banner = {banner, "  +-----------------------------------------------------------+\n"};
-        banner = {banner, "  |                >>> UVM REPORT SUMMARY <<<                 |\n"};
-        banner = {banner, "  +-----------------------------------------------------------+\n"};
-
-        banner = {banner, "  [ SEVERITY COUNTS ]\n"};
-        banner = {banner, "  -------------------------------------------------------------\n"};
-        
-        for(uvm_severity_type s = s.first(); 1; s = s.next()) begin
-            int cnt = this.get_severity_count(s);
-            $sformat(output_str, "   * %-15s : %6d\n", s.name(), cnt);
-            banner = {banner, output_str};
-            if(s == s.last()) break;
-        end
-
-        banner = {banner, "  -------------------------------------------------------------\n"};
-        banner = {banner, "  [ ID COUNTS ]\n"};
-        banner = {banner, "  -------------------------------------------------------------\n"};
-        
-        foreach (custom_id_count[id]) begin
-            int cnt = custom_id_count[id];
-            $sformat(output_str, "   * [%-40s] : %6d\n", id, cnt);
-            banner = {banner, output_str};
-        end
-        
-        banner = {banner, "  +-----------------------------------------------------------+\n"};
-
-        if (err_count == 0 && fatal_count == 0) begin
-            banner = { banner,
-                "\n",
-                "   =========================================================\n",
-                "   ===                                                   ===\n",
-                "   ===                S U C C E S S ! ! !                ===\n",
-                "   ===                                                   ===\n",
-                "   =========================================================\n"
-            };
-        end else begin
-            banner = { banner,
-                "\n",
-                "   =========================================================\n",
-                "   ===                                                   ===\n",
-                "   ===                 F A I L E D ! ! !                 ===\n",
-                "   ===                                                   ===\n",
-                "   =========================================================\n"
-            };
-        end
-        
-        `uvm_info("FINAL_RESULT", banner, UVM_NONE)
-    endfunction
-endclass
-
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_base_test extends uvm_test;
 
     /*------------------------------------------------------------------------------
@@ -125,6 +37,7 @@ class rx_base_test extends uvm_test;
     rx_environment           environment = null;
     rx_generation_parameters parameters  = null;
 
+
     /*-------------------------------------------------------------------------------
     -- Constructor.
     -------------------------------------------------------------------------------*/
@@ -135,6 +48,13 @@ class rx_base_test extends uvm_test;
     /*------------------------------------------------------------------------------
     -- Build Phase.
     ------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Build Phase
+    // -----------------------------------------------------------------------------
+    // The UVM build_phase is executed top-down. It is responsible for retrieving
+    // configuration objects from the UVM configuration database, computing local
+    // configuration values, and instantiating lower-level UVM components.
+    // =============================================================================
     virtual function void build_phase (uvm_phase phase);
         rx_report_server srv;
         super.build_phase(phase);
@@ -152,7 +72,16 @@ class rx_base_test extends uvm_test;
 
         // Set generation parameters
         this.parameters = new("parameters");
-        if (!this.parameters.randomize()) begin
+        if (!this.parameters.randomize() with {
+            // 1   = Deterministic 1:4 (1-0-0-0 pattern)
+            // 25  = Probabilistic 25% valid per cycle
+            // 100 = Constant 1 (Always valid)
+            INPUT_DATA_VALID_PROBABILITY dist {
+                1   := INPUT_DATA_VALID_1_TO_4_RATIO_P,
+                25  := INPUT_DATA_VALID_25_PERCENT_P,
+                100 := INPUT_DATA_VALID_100_PERCENT_P
+            };
+        }) begin
             `uvm_fatal(this.get_full_name(), "Failed to randomize parameters")
         end
         uvm_config_db #(rx_generation_parameters)::set(this, "*", "parameters", this.parameters);
@@ -163,17 +92,22 @@ class rx_base_test extends uvm_test;
         uvm_config_db #(int)::set(this, "environment.output_data_agent",          "is_active",         UVM_ACTIVE);
         uvm_config_db #(int)::set(this, "environment.control_agent",              "is_active",         UVM_ACTIVE);
         uvm_config_db #(int)::set(this, "environment.parity_agent",               "is_active",         UVM_ACTIVE);
-        uvm_config_db #(bit)::set(this, "environment.input_data_agent*",           "is_master",         1'b1);
-        uvm_config_db #(bit)::set(this, "environment.output_data_agent*",          "is_master",         1'b0);
-        uvm_config_db #(bit)::set(this, "environment.control_agent*",              "is_master",         1'b0);
-        uvm_config_db #(bit)::set(this, "environment.parity_agent*",               "is_master",         1'b0);
-
-        $display("hiiii, ", this.get_full_name());
+        uvm_config_db #(bit)::set(this, "environment.input_data_agent*",          "is_master",         1'b1);
+        uvm_config_db #(bit)::set(this, "environment.output_data_agent*",         "is_master",         1'b0);
+        uvm_config_db #(bit)::set(this, "environment.control_agent*",             "is_master",         1'b0);
+        uvm_config_db #(bit)::set(this, "environment.parity_agent*",              "is_master",         1'b0);
     endfunction
 
     /*-------------------------------------------------------------------------------
     -- Connect Phase
     -------------------------------------------------------------------------------*/
+    // =============================================================================
+    // Connect Phase
+    // -----------------------------------------------------------------------------
+    // The connect_phase executes bottom-up. It is used to wire up the environment
+    // by linking TLM analysis ports to their corresponding analysis exports, ensuring
+    // proper data flow from monitors/agents to the scoreboard and coverage modules.
+    // =============================================================================
     virtual function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
 
@@ -186,19 +120,6 @@ class rx_base_test extends uvm_test;
         );
     endfunction
 
-    /*-------------------------------------------------------------------------------
-    -- Print Coverage
-    -- Call this function at any point to print a coverage snapshot to the CLI.
-    -- Usage from a sequence:
-    --   begin
-    --      rx_base_test test_h;
-    --      $cast(test_h, uvm_root::get().find("uvm_test_top"));
-    --      test_h.print_coverage();
-    --   end
-    -------------------------------------------------------------------------------*/
-    virtual function void print_coverage();
-        this.environment.coverage_subscriber.print_coverage();
-    endfunction
 endclass
 
 `endif // __RX_BASE_TEST

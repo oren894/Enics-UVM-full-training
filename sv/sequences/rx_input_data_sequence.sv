@@ -1,18 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // File name    : rx_input_data_sequence.sv
-// Project name : 
-// Author       : 
-// Date Created : 25/12
-// Company      : IDF - Masad - Mador 34
+// Project name : rx_uvm_environment
+// Author       : Oren Ruthstein
+// Date Created : 04/2026
+// Company      : Enics
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Sequence to send messages to the module rx.
-//
-////////////////////////////////////////////////////////////////////////////////
-//
-// Comments:
+// Description: Base sequence responsible for generating and driving randomized packet items into the RX module with configurable error injection.
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -22,6 +18,12 @@
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
+// =============================================================================
+// Class Definition
+// -----------------------------------------------------------------------------
+// This class extends the standard UVM base library. It inherits core UVM
+// functionality including phased execution, factory registration, and logging.
+// =============================================================================
 class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verification_pack::INPUT_SEQUENCE_ITEM_WIDTH));
 
     /*-----------------------------------------------------------------------------------
@@ -38,47 +40,47 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
     /*-------------------------------------------------------------------------------
     -- Members.
     -------------------------------------------------------------------------------*/
-    rand rx_item input_data; 
+    rand rx_item input_data; // Randomized stimulus field
     static bit remainder[$]; // Buffer for leftover bits from previous items 
-    rand bit is_locked;
-    rand bit is_wrong_length;
+    rand bit is_locked; // Randomized stimulus field
+    rand bit is_wrong_length; // Randomized stimulus field
 
     /*-------------------------------------------------------------------------------
     -- Constraints
     -------------------------------------------------------------------------------*/
-    constraint length_c {
+    constraint length_c { // UVM Randomization constraint block
         // Length will be randomized between MIN-MAX and divisible by 4
         input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE:rx_verification_pack::MAX_DATA_SIZE]};
         input_data.length % 4 == 0;
     }
 
     //need to have constraint only for the virtual sequence that send the data 
-    constraint half_packet_c {
+    constraint half_packet_c { // UVM Randomization constraint block
         input_data.half_packet dist {
-            0 :/ 99,
-            1 :/ 1
+            0 := 99,
+            1 := 1
         };
     }
 
-    constraint control_c {
+    constraint control_c { // UVM Randomization constraint block
         input_data.control dist {
-            0             :/ 25,
-            [1:$]         :/ 75
+            0             := this.parameters.CONTROL_ZERO_P,
+            [1:$]         := 100 - this.parameters.CONTROL_ZERO_P
         };
     }
 
-    constraint length_error_c {
+    constraint length_error_c { // UVM Randomization constraint block
         if (is_locked) {
             input_data.length_error dist {
-                0 :/ 80,
-                1 :/ 20
+                0 := 100 - this.parameters.LENGTH_ERROR_P,
+                1 := this.parameters.LENGTH_ERROR_P
             };
         } else {
             input_data.length_error == 0;
         }
     }
 
-    constraint wrong_length_c {
+    constraint wrong_length_c { // UVM Randomization constraint block
         if (is_wrong_length) {
             input_data.wrong_length == 1;
         } else {
@@ -86,17 +88,17 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
         }
     }
 
-    constraint control_error_c {
+    constraint control_error_c { // UVM Randomization constraint block
         input_data.control_error dist {
-            0 :/ 80,
-            1 :/ 20
+            0 := 100 - this.parameters.CONTROL_ERROR_P,
+            1 := this.parameters.CONTROL_ERROR_P
         };
-    }
+    }   
 
-    constraint parity_error_c {
+    constraint parity_error_c { // UVM Randomization constraint block
         input_data.parity_error dist {
-            0 :/ 50,
-            1 :/ 50
+            0 := 100 - this.parameters.PARITY_ERROR_P,
+            1 := this.parameters.PARITY_ERROR_P
         };
     }
     /*-------------------------------------------------------------------------------
@@ -114,7 +116,6 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
     -- Pre start
     -------------------------------------------------------------------------------*/
     task pre_start();
-        // $display("pre_start");
         // Raise objection
         if ((get_parent_sequence() == null) && (starting_phase != null)) begin
             starting_phase.raise_objection(this, "Starting");
@@ -146,7 +147,6 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
 
         // 1. Pack the item into a bit array
         this.input_data.pack(bit_array);
-        $display("errors (length_error, control_error, parity_error, wrong_length, length, length_hex , time in ns) = %0d %0d %0d %0d %0d %0h %0t", this.input_data.length_error, this.input_data.control_error, this.input_data.parity_error, this.input_data.wrong_length, this.input_data.length, this.input_data.length, $time / 1000);
         // 2. Handle Half Packet: Strip Headers and Random Data
         if (this.input_data.half_packet) begin
             int header_bits = rx_verification_pack::LENGTH_DATA_WIDTH + 
@@ -156,7 +156,6 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
             
             // Strip headers + 1 to 7 extra bits to force byte/chunk misalignment
             int random_strip = $urandom_range(1, 7);
-            $display("Creating half packet");
 
             if ((header_bits + random_strip) < bit_array.size()) begin
                 start_idx = header_bits + random_strip;
@@ -171,8 +170,6 @@ class rx_input_data_sequence extends uvm_sequence #(dv_sequence_item #(rx_verifi
             bit_queue.push_back(remainder[i]);
         end
         remainder.delete(); // Clear the static buffer after copying
-        $display("start_idx = %0d, bit_array.size() = %0d", start_idx, bit_array.size());
-        $display("half_packet = %0d", this.input_data.half_packet);
 
         // 4. Append the current packed data starting from start_idx
         for(int i = start_idx; i < bit_array.size(); i++) begin

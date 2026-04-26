@@ -71,9 +71,22 @@ package rx_verification_pack;
     ------------------------------------------------------------------------------*/
     localparam bit [15:0] CRC_LEN_POLY = 16'h1021;
     localparam bit [15:0] CRC_LEN_INIT = 16'hFFFF;
-    
+
     localparam bit [15:0] CRC_CTRL_POLY = 16'h8005;
     localparam bit [15:0] CRC_CTRL_INIT = 16'h0000;
+
+    /*------------------------------------------------------------------------------
+    -- Simulation Timeout
+    -- Maximum simulation time before UVM forcibly ends the run_phase.
+    -- Covers worst-case TEST_REAL traffic volume (~30-40 min worth of packets).
+    ------------------------------------------------------------------------------*/
+    localparam time SIMULATION_TIMEOUT = 50_000_000ns;
+
+    /*------------------------------------------------------------------------------
+    -- Default Test Name
+    -- Override at runtime with +UVM_TESTNAME=<test_name>
+    ------------------------------------------------------------------------------*/
+    localparam string DEFAULT_TEST_NAME = "rx_base_test";
 endpackage
 
 `endif // __RX_VERIFICATION_PACK

@@ -113,14 +113,6 @@ class rx_generation_parameters extends uvm_object;
     int unsigned CONTROL_ERROR_P = 20;
     int unsigned PARITY_ERROR_P  = 50;
 
-
-
-
-
-    
-
-    
-
     /*-------------------------------------------------------------------------------
     -- Constructor.
     -------------------------------------------------------------------------------*/

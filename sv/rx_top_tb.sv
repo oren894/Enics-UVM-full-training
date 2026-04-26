@@ -123,8 +123,8 @@ module rx_top_tb ();
     ------------------------------------------------------------------------------*/
     initial begin
 
-        // Start the test.
-        uvm_root::get().run_test("rx_base_test");
+        // Start the test. Default is rx_base_test; override with +UVM_TESTNAME=<name>.
+        uvm_root::get().run_test(rx_verification_pack::DEFAULT_TEST_NAME);
     end
     // FSM states
     typedef enum logic [2:0]{

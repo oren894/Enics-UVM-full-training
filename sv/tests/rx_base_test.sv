@@ -98,9 +98,7 @@ class rx_base_test extends uvm_test;
         uvm_config_db #(bit)::set(this, "environment.parity_agent*",              "is_master",         1'b0);
     endfunction
 
-    /*-------------------------------------------------------------------------------
-    -- Connect Phase
-    -------------------------------------------------------------------------------*/
+
     // =============================================================================
     // Connect Phase
     // -----------------------------------------------------------------------------
@@ -119,6 +117,22 @@ class rx_base_test extends uvm_test;
             rx_virtual_sequence::type_id::get()
         );
     endfunction
+
+
+    // =============================================================================
+    // Run Phase
+    // -----------------------------------------------------------------------------
+    // The run_phase is a time-consuming phase that drives the actual simulation.
+    // It raises an objection to keep the simulation alive while the virtual
+    // sequence executes (via the default_sequence set in connect_phase), and
+    // drops it once the phase completes, allowing the simulation to end cleanly.
+    // =============================================================================
+    virtual task run_phase (uvm_phase phase);
+        // Apply simulation timeout from generation parameters
+        uvm_root::get().set_timeout(rx_verification_pack::SIMULATION_TIMEOUT);
+        super.run_phase(phase);
+    endtask
+
 
 endclass
 

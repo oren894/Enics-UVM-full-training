@@ -461,19 +461,7 @@ class rx_reference_model extends uvm_component;
                             end else begin
                                 parity_indication = 1'b1; // 1 if Error/Invalid
                             end
-                            
-                            // begin
-                            //     dv_monitor_item #(1) parity_item = new("parity_item");
-                            //     parity_item.data = parity_indication;
-                            //     this.parity_export.write(parity_item);
-                            // end
-                            
-                            // // Packet Complete
-                            // this.consecutive_valid_packet_counter++; // Increment the counter of valid packets
-                            // if (this.consecutive_valid_packet_counter >= this.lock_valid_threshold_value) begin // Check if we have lock_valid_threshold_value correct packets
-                            //     this.current_lock_state = LOCKED; // Move to LOCKED
-                            // end
-                            
+
                             // Next packet immediately starts at Length Phase again
                             this.current_packet_state = PACKET_LENGTH; // Move to the next state
                             this.current_packet_state_byte_counter = 0; // Reset the counter

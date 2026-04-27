@@ -243,9 +243,33 @@ uvm-verification/
 
 ## Running a Simulation
 
-### Single Run (Manual)
+Navigate to the `runspace/` directory. Three run modes are available:
 
-Navigate to the `runspace/` directory and run:
+### Regular
+
+```bash
+cd runspace
+
+xrun -uvm \
+     -f ../list.f \
+     +define+UVM_PACKER_MAX_BYTES=10000
+```
+
+### With Waveforms (SimVision)
+
+```bash
+cd runspace
+
+xrun -uvm \
+     -f ../list.f \
+     -input ../scripts/sim.tcl \
+     -access +rwc \
+     +define+UVM_PACKER_MAX_BYTES=10000
+```
+
+The `-input ../scripts/sim.tcl` script sets up the waveform dump automatically. The `-access +rwc` flag grants SimVision full read/write/call access to the design hierarchy.
+
+### With Coverage
 
 ```bash
 cd runspace
@@ -255,19 +279,49 @@ xrun -uvm \
      +define+UVM_PACKER_MAX_BYTES=10000 \
      -coverage all \
      -covoverwrite \
-     -xmlibdirname ./xcelium_run_1 \
-     -covtest manual_run \
-     -svseed random
+     -covworkdir ./cov_work \
+     -covtest manual_run
 ```
 
 A successful run will print **`S U C C E S S`** near the end of the log.
 
-### With Debug Mode
+---
 
-To enable debug signals in the RTL:
+### Viewing Waveforms in SimVision
+
+#### First Time — Load the Database
+
+After the simulation finishes, open SimVision:
+
 ```bash
-xrun -uvm -f ../list.f ... +define+DEBUG
+simvision dump
 ```
+
+Or from within SimVision:
+```
+File → Open Database → select dump
+```
+
+Once the database is loaded:
+1. In the **Design Browser** panel (left), expand the DUT hierarchy
+2. Select signals and drag them into the **Waveform Window**
+3. Press **F** to zoom to the full simulation time
+4. Save your layout: `File → Save As → mysignals.svcf`
+
+#### Subsequent Runs — Reload Only
+
+After re-running the simulation, inside SimVision:
+```
+File → Reload Databases
+```
+Or press **Ctrl+Shift+R** — SimVision refreshes the waveforms while keeping your signal layout intact.
+
+To reopen SimVision with your saved layout directly:
+```bash
+simvision mysignals.svcf
+```
+
+> **Tip:** Load the database + arrange signals + save `.svcf` **once** — every run after that is just re-run xrun → **Reload Databases**.
 
 ---
 

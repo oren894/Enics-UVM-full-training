@@ -80,7 +80,7 @@ package rx_verification_pack;
     -- Maximum simulation time before UVM forcibly ends the run_phase.
     -- Covers worst-case TEST_REAL traffic volume (~30-40 min worth of packets).
     ------------------------------------------------------------------------------*/
-    localparam time SIMULATION_TIMEOUT = 50_000_000ns;
+    localparam time SIMULATION_TIMEOUT = 10_000_000_000ns;
 
     /*------------------------------------------------------------------------------
     -- Default Test Name

@@ -20,7 +20,7 @@ import random
 # ===========================================================
 # CONFIGURATION
 # ===========================================================
-NUM_RUNS     = 1        # Total regression runs
+NUM_RUNS     = 1000        # Total regression runs
 MAX_PARALLEL = 20          # Max simultaneous grid jobs (= licenses)
 DELAY_TIME   = 10          # Seconds between qstat poll cycles
 

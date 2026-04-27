@@ -284,7 +284,7 @@ class rx_virtual_sequence extends uvm_sequence;
                                 `uvm_info(get_name(), $sformatf("TEST_REAL: Starting transaction %0d / %0d", transaction_count - _tx_idx, transaction_count), UVM_LOW)
                                 _tx_idx++;
                                 // 0-1000 packets of min length
-                                repeat($urandom_range(1, 1000)) begin
+                                repeat($urandom_range(this.parameters.MIN_ZERO_PACKETS_IN_REAL_TEST, this.parameters.MAX_ZERO_PACKETS_IN_REAL_TEST)) begin
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
@@ -294,7 +294,7 @@ class rx_virtual_sequence extends uvm_sequence;
                                 })
                                 end
                                 // 0-100 optimal
-                                repeat($urandom_range(1, 100)) begin
+                                repeat($urandom_range(this.parameters.MIN_OPTIMAL_PACKETS_IN_REAL_TEST, this.parameters.MAX_OPTIMAL_PACKETS_IN_REAL_TEST)) begin
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                         is_locked == 1;

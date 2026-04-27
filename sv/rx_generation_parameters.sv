@@ -88,6 +88,16 @@ class rx_generation_parameters extends uvm_object;
     int unsigned MAX_TRANSACTIONS_IN_REAL_TEST = 100;
     
     /*------------------------------------------------------------------------------
+    -- Number of packets in TEST_REAL (zero length vs optimal length).
+    -- These parameters determine how many packets of each type are sent within
+    -- a single "transaction" in TEST_REAL mode.
+    ------------------------------------------------------------------------------*/
+    int unsigned MIN_ZERO_PACKETS_IN_REAL_TEST = 1;
+    int unsigned MAX_ZERO_PACKETS_IN_REAL_TEST = 1000;
+    int unsigned MIN_OPTIMAL_PACKETS_IN_REAL_TEST = 1;
+    int unsigned MAX_OPTIMAL_PACKETS_IN_REAL_TEST = 100;
+    
+    /*------------------------------------------------------------------------------
     -- Initial Junk Data Size
     -- These define the size range (in bytes) of the initial "junk" data sent at the
     -- very beginning of the test before proper lock acquisition begins.

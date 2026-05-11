@@ -196,34 +196,34 @@ class rx_virtual_sequence extends uvm_sequence;
             NOT RELEVANT FOR NOW BECAUSE DUT NOT SUPPORT THIS
             ================================================*/
 
-            // LOCK_SINGLE_BIT_ERR: begin
-            //     `uvm_info(get_name(), "Executing LOCK_SINGLE_BIT_ERR scenario...", UVM_LOW)
-            //     // LVT-1 packets
-            //     repeat(lock_valid_threshold_val - 1) begin
-            //          `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-            //             input_data.half_packet == 0;
-            //             input_data.length_error == 0;
-            //             input_data.wrong_length == 0;
-            //          })
-            //     end
+            LOCK_SINGLE_BIT_ERR: begin
+                `uvm_info(get_name(), "Executing LOCK_SINGLE_BIT_ERR scenario...", UVM_LOW)
+                // LVT-1 packets
+                repeat(lock_valid_threshold_val - 1) begin
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
+                end
                 
-            //     // 1 packet with length_error
-            //     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-            //          input_data.length_error == 1;
-            //          input_data.half_packet == 0;
-            //          input_data.wrong_length == 0;
-            //     })
+                // 1 packet with length_error
+                `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                     input_data.length_error == 1;
+                     input_data.half_packet == 0;
+                     input_data.wrong_length == 0;
+                })
                 
-            //     // LVT packets
-            //     repeat(lock_valid_threshold_val) begin
-            //          `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-            //             input_data.half_packet == 0;
-            //             input_data.length_error == 0;
-            //             input_data.wrong_length == 0;
-            //          })
-            //     end
+                // LVT packets
+                repeat(lock_valid_threshold_val) begin
+                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                        input_data.half_packet == 0;
+                        input_data.length_error == 0;
+                        input_data.wrong_length == 0;
+                     })
+                end
 
-            // end
+            end
 
             
             LOCK_MULTI_BIT_ERR: begin

@@ -452,7 +452,3 @@ UVM_FATAL count : 0
 [RX_SCOREBOARD_CONTROL] Matched: N    Mismatches: 0
 [RX_SCOREBOARD_PARITY]  Matched: N    Mismatches: 0
 ```
-
----
-
-*Enics & IDF Matzov Unit · April 2026*

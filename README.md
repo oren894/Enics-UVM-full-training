@@ -226,7 +226,7 @@ uvm-verification/
 1. Clone the repository:
    ```bash
    git clone <repo-url>
-   cd uvm-verification
+   cd rx-uvm-env
    ```
 
 2. Update the file list path in `scripts/run_regression.py`:

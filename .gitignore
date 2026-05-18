@@ -1,0 +1,14 @@
+runspace/*
+!runspace/logs/
+!runspace/cov_work/
+runspace/logs/*
+!runspace/logs/.gitkeep
+runspace/cov_work/*
+!runspace/cov_work/scope/
+runspace/cov_work/scope/*
+!runspace/cov_work/scope/.gitkeep
+.vscode/*
+.idea/*
+.cache/*
+.simvision/*
+.bpad/*

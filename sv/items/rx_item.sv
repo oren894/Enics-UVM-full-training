@@ -169,10 +169,38 @@ class rx_item extends uvm_object;
         this.control_crc = calculate_crc16_ctrl(this.control);
 
         // Calculate Data
+        // Data generation mode is controlled by generation parameters.
+        // Random is the implicit default (no flag needed).
+        // Set DATA_MODE_CONST_BYTE=1 OR DATA_MODE_COUNTER=1 to override.
+        // Setting both at once is an error.
         data_size = this.length - ((rx_verification_pack::CONTROL_DATA_WIDTH + rx_verification_pack::CONTROL_CRC_DATA_WIDTH) / 8);
         this.data.delete();
-        for (int i=0; i < data_size; i++) begin
-            this.data.push_back($urandom);
+
+        begin : data_gen_mode_check
+            if (parameters.DATA_MODE_CONST_BYTE && parameters.DATA_MODE_COUNTER) begin
+                begin
+                    string _fatal_msg;
+                    _fatal_msg = $sformatf("Only one data generation mode may be enabled at a time. DATA_MODE_CONST_BYTE=%0d, DATA_MODE_COUNTER=%0d",
+                                           parameters.DATA_MODE_CONST_BYTE,
+                                           parameters.DATA_MODE_COUNTER);
+                    `uvm_fatal("RX_ITEM", _fatal_msg)
+                end
+            end else if (parameters.DATA_MODE_CONST_BYTE) begin
+                // Mode 2: every byte is the configured constant
+                for (int i = 0; i < data_size; i++) begin
+                    this.data.push_back(parameters.CONST_BYTE_VALUE);
+                end
+            end else if (parameters.DATA_MODE_COUNTER) begin
+                // Mode 3: wrapping counter starting at 0
+                for (int i = 0; i < data_size; i++) begin
+                    this.data.push_back(byte'(i % 256));
+                end
+            end else begin
+                // Default: fully random bytes
+                for (int i = 0; i < data_size; i++) begin
+                    this.data.push_back($urandom);
+                end
+            end
         end
         
         // Calculate Parity

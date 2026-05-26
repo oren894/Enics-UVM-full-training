@@ -96,6 +96,20 @@ class rx_generation_parameters extends uvm_object;
     int unsigned MAX_ZERO_PACKETS_IN_REAL_TEST = 1000;
     int unsigned MIN_OPTIMAL_PACKETS_IN_REAL_TEST = 1;
     int unsigned MAX_OPTIMAL_PACKETS_IN_REAL_TEST = 100;
+
+    /*------------------------------------------------------------------------------
+    -- Packet length limits
+    -- Define the minimum, maximum, and optimal payload length (in bytes) used
+    -- when constraining packet lengths during sequence generation.
+    -- Defaults mirror the rx_verification_pack constants so existing test
+    -- behaviour is preserved unless overridden.
+    --   MIN_PACKET_LENGTH     : Minimum allowed packet length (bytes). for empty length is 4 bytes
+    --   MAX_PACKET_LENGTH     : Maximum allowed packet length (bytes). for max length is 8192 bytes
+    --   OPTIMAL_PACKET_LENGTH : Target "optimal" length for TEST_REAL traffic. for optimal length is 4096 bytes
+    ------------------------------------------------------------------------------*/
+    int unsigned MIN_PACKET_LENGTH     = rx_verification_pack::MIN_DATA_SIZE;
+    int unsigned MAX_PACKET_LENGTH     = rx_verification_pack::MAX_DATA_SIZE;
+    int unsigned OPTIMAL_PACKET_LENGTH = rx_verification_pack::OPTIMAL_DATA_SIZE;
     
     /*------------------------------------------------------------------------------
     -- Initial Junk Data Size
@@ -105,9 +119,13 @@ class rx_generation_parameters extends uvm_object;
     -- the DUT can correctly find the start of a packet regardless of alignment.
     -- These values should be kept relatively small so as not to unnecessarily getting wrong into maybe lock state
     -- the start of the actual test scenario.
+    --
+    --   SEND_PHASE_JUNK : (default=1) Set to 0 to skip the junk/phase-creation
+    --                     step entirely at the beginning of the test.
     ------------------------------------------------------------------------------*/
-    int unsigned MIN_LENGTH_FOR_START_JUNK = 0;
-    int unsigned MAX_LENGTH_FOR_START_JUNK = 100;
+    int unsigned SEND_PHASE_JUNK            = 1;
+    int unsigned MIN_LENGTH_FOR_START_JUNK  = 0;
+    int unsigned MAX_LENGTH_FOR_START_JUNK  = 100;
     
     /*------------------------------------------------------------------------------
     -- Packet Probabilities for errors
@@ -122,6 +140,24 @@ class rx_generation_parameters extends uvm_object;
     int unsigned LENGTH_ERROR_P  = 20;
     int unsigned CONTROL_ERROR_P = 20;
     int unsigned PARITY_ERROR_P  = 50;
+
+    /*------------------------------------------------------------------------------
+    -- Data Generation Mode
+    -- Controls how the data payload bytes are generated for each packet.
+    -- Random is the default — no parameter needed to enable it.
+    -- Set exactly ONE of the two explicit modes to 1 to override the default;
+    -- setting both at once will cause a fatal error in post_randomize.
+    --
+    --   DATA_MODE_CONST_BYTE : (default=0) Every byte is set to CONST_BYTE_VALUE.
+    --   DATA_MODE_COUNTER    : (default=0) Bytes increment as a wrapping counter
+    --                          starting from 0.
+    --   (neither set)        : Each byte is generated with $urandom (default).
+    --
+    --   CONST_BYTE_VALUE     : The byte value used when DATA_MODE_CONST_BYTE=1.
+    ------------------------------------------------------------------------------*/
+    int unsigned DATA_MODE_CONST_BYTE = 0;
+    int unsigned DATA_MODE_COUNTER    = 0;
+    byte unsigned CONST_BYTE_VALUE    = 8'h00;
 
     /*-------------------------------------------------------------------------------
     -- Constructor.

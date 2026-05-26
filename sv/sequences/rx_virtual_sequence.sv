@@ -122,10 +122,13 @@ class rx_virtual_sequence extends uvm_sequence;
         `uvm_info(get_name(), $sformatf("Randomized: test_type=%s, lock_type=%s, num_msgs=%0d, transaction_count=%0d", test_type.name(), lock_type.name(), num_msgs, transaction_count), UVM_LOW)
         
         // Create Phase - sending junk before messages to create the phase in the messages
-        `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-            input_data.half_packet == 1; // Removes the header of the message so it would be junk data.
-            input_data.length inside {[this.parameters.MIN_LENGTH_FOR_START_JUNK : this.parameters.MAX_LENGTH_FOR_START_JUNK]}; // Sending small messages.
-        })
+        // Controlled by parameters.SEND_PHASE_JUNK (default=1). Set to 0 to skip.
+        if (parameters.SEND_PHASE_JUNK) begin
+            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                input_data.half_packet == 1; // Removes the header of the message so it would be junk data.
+                input_data.length inside {[this.parameters.MIN_LENGTH_FOR_START_JUNK : this.parameters.MAX_LENGTH_FOR_START_JUNK]}; // Sending small messages.
+            })
+        end
 
         // Handle Lock Types
         case(lock_type)
@@ -136,7 +139,7 @@ class rx_virtual_sequence extends uvm_sequence;
                 repeat(lock_valid_threshold_val) begin
                     if (test_type == TEST_REAL) begin
                         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
-                            input_data.length == rx_verification_pack::MIN_DATA_SIZE; // The real scenerio locks with minimum size messages.
+                            input_data.length == this.parameters.MIN_PACKET_LENGTH; // The real scenerio locks with minimum size messages.
                             input_data.half_packet == 0;
                             input_data.wrong_length == 0;
                         })
@@ -160,7 +163,7 @@ class rx_virtual_sequence extends uvm_sequence;
                 // Send a 1 packet with is_locked == 1 and length != MIN_DATA_SIZE
                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                         is_locked == 1; 
-                        input_data.length != rx_verification_pack::MIN_DATA_SIZE;
+                        input_data.length != this.parameters.MIN_PACKET_LENGTH;
                         input_data.half_packet == 0;
                         input_data.wrong_length == 0;
                     })
@@ -288,7 +291,7 @@ class rx_virtual_sequence extends uvm_sequence;
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
-                                    input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+                                    input_data.length == this.parameters.MIN_PACKET_LENGTH;
                                     input_data.half_packet == 0;
                                     input_data.wrong_length == 0;
                                 })
@@ -298,7 +301,7 @@ class rx_virtual_sequence extends uvm_sequence;
 
                                     `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                         is_locked == 1;
-                                        input_data.length == rx_verification_pack::OPTIMAL_DATA_SIZE;
+                                        input_data.length == this.parameters.OPTIMAL_PACKET_LENGTH;
                                         input_data.half_packet == 0;
                                         input_data.wrong_length == 0;
                                     })
@@ -307,7 +310,7 @@ class rx_virtual_sequence extends uvm_sequence;
                                 // 1 that between min-optimal
                                 `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
                                     is_locked == 1;
-                                    input_data.length inside {[rx_verification_pack::MIN_DATA_SIZE + 1 : rx_verification_pack::OPTIMAL_DATA_SIZE - 1]};
+                                    input_data.length inside {[this.parameters.MIN_PACKET_LENGTH + 1 : this.parameters.OPTIMAL_PACKET_LENGTH - 1]};
                                     input_data.half_packet == 0;
                                     input_data.wrong_length == 0;
                                 })
@@ -320,7 +323,7 @@ class rx_virtual_sequence extends uvm_sequence;
         // ---- End-of-test garbage: send a half packet with corrupted length ----
         `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
             input_data.half_packet == 1;
-            input_data.length == rx_verification_pack::MIN_DATA_SIZE;
+            input_data.length == this.parameters.MIN_PACKET_LENGTH;
         })
     endtask
 

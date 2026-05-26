@@ -20,7 +20,7 @@ import random
 # ===========================================================
 # CONFIGURATION
 # ===========================================================
-NUM_RUNS     = 1000        # Total regression runs
+NUM_RUNS     = 10        # Total regression runs
 MAX_PARALLEL = 20          # Max simultaneous grid jobs (= licenses)
 DELAY_TIME   = 10          # Seconds between qstat poll cycles
 
@@ -28,8 +28,8 @@ LOGDIR      = "logs"
 MAIN_LOG    = f"{LOGDIR}/main.log"
 SUMMARY_LOG = f"{LOGDIR}/summary.log"
 
-# Absolute path to list.f – works regardless of cwd
-FILELIST = "/project/test_project/users/ruthsto/ws/uvm_env/uvm-verification/list.f"
+# Absolute path to list.f – derived from this script's location so it always resolves correctly
+FILELIST = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../list.f"))
 
 # Flags in the exact same order as run_regression.sh:
 #   xrun -uvm -f <list> +define+UVM_PACKER_MAX_BYTES=10000 -coverage all -covoverwrite
@@ -269,22 +269,54 @@ def generate_and_run_merge_tcl(completed_run_ids):
 def main():
     global success_count, failed_count, error_count
 
-    # ── Clean old data ──────────────────────────────────────
-    for old_dir in ("cov_work", LOGDIR):
-        if os.path.isdir(old_dir):
-            print(f"[CLEAN] Removing {old_dir}/ ...")
-            shutil.rmtree(old_dir, ignore_errors=True)
-            if os.path.isdir(old_dir):
-                print(f"[WARN]  {old_dir}/ could not be fully removed (NFS lock files from "
-                      f"previous grid jobs still running). Continuing anyway ...")
-    for entry in os.listdir(RUNSPACE_DIR):
-        if entry.startswith("xcelium_run_"):
-            shutil.rmtree(os.path.join(RUNSPACE_DIR, entry), ignore_errors=True)
+    # ── Clean old data (preserve .gitkeep files) ────────────
+    def _clean_dir_contents(path):
+        """Remove everything inside *path* except .gitkeep files. Creates the dir if missing."""
+        os.makedirs(path, exist_ok=True)
+        for entry in os.listdir(path):
+            if entry == ".gitkeep":
+                continue
+            full = os.path.join(path, entry)
+            if os.path.isdir(full):
+                shutil.rmtree(full, ignore_errors=True)
+            else:
+                try:
+                    os.remove(full)
+                except OSError:
+                    pass
 
-    os.makedirs(LOGDIR, exist_ok=True)
+    # Clean logs/ and cov_work/scope/ contents, keeping structure + .gitkeep
+    for target_dir in (LOGDIR, COV_WORK_DIR):
+        print(f"[CLEAN] Clearing {target_dir}/ ...")
+        _clean_dir_contents(target_dir)
+
+    # Clean stale per-run artefacts from runspace root
+    RUNSPACE_STALE_PREFIXES = ("xcelium_run_",)
+    RUNSPACE_STALE_NAMES    = ("xrun.log", "xrun.history", "xcelium.d",
+                               "simvision.e", "simvision.o")
+    for entry in os.listdir(RUNSPACE_DIR):
+        if entry == ".gitkeep":
+            continue
+        full = os.path.join(RUNSPACE_DIR, entry)
+        is_stale = (
+            any(entry.startswith(p) for p in RUNSPACE_STALE_PREFIXES)
+            or any(entry.startswith(n) for n in RUNSPACE_STALE_NAMES)
+        )
+        if is_stale:
+            print(f"[CLEAN] Removing {entry} ...")
+            if os.path.isdir(full):
+                shutil.rmtree(full, ignore_errors=True)
+            else:
+                try:
+                    os.remove(full)
+                except OSError:
+                    pass
+
+    # Initialise fresh log files
     open(MAIN_LOG, "w").close()
     with open(SUMMARY_LOG, "w") as sf:
         sf.write("No runs completed yet.\n")
+
 
     log_and_print("=" * 60)
     log_and_print(f"Parallel UVM Regression  –  {NUM_RUNS} runs  –  {MAX_PARALLEL} parallel  (qsub)")

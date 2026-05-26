@@ -1,12 +1,7 @@
+# ── Runspace: ignore everything except the .gitkeep sentinel ────────────────
 runspace/*
-!runspace/logs/
-!runspace/cov_work/
-runspace/logs/*
-!runspace/logs/.gitkeep
-runspace/cov_work/*
-!runspace/cov_work/scope/
-runspace/cov_work/scope/*
-!runspace/cov_work/scope/.gitkeep
+!runspace/.gitkeep
+
 .vscode/*
 .idea/*
 .cache/*

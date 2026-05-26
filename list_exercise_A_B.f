@@ -31,8 +31,10 @@
 ../dv_agent/dv_monitor.sv
 ../dv_agent/dv_agent.sv
 
-
+# ── exercise generation_parameters ──
 ../sv/generation_parameters/exercise_rx_generation_parameters.sv
+
+
 ../sv/components/rx_scoreboard.sv
 ../sv/sequencers/rx_virtual_sequencer.sv
 ../sv/items/rx_item/final_rx_item.sv

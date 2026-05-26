@@ -1,7 +1,20 @@
 # DMA RX — UVM Verification Environment
 
-> **Training Project** | SystemVerilog · UVM · Xcelium · CRC · Parity  
+> **Complete Verification Framework** | SystemVerilog · UVM · Xcelium · CRC · Parity  
+> **With Built-In Training Exercises**
 
+**TL;DR:** Complete UVM test environment. Can run as-is with final implementations, or work through 3 optional implementation tasks (reference model, coverage, stimulus).
+
+---
+
+## ⚠️ Note: Training Exercises Included
+
+This repository contains **three progressive implementation tasks** for learning UVM verification:
+- **Task A:** Implement the reference model (golden predictor)
+- **Task B:** Implement functional coverage collection  
+- **Task C:** Implement stimulus generation
+
+See **STUDENT_GUIDE_FRIENDLY.md** for implementation details. These exercises are optional — you can also run the environment with all final implementations using `list_full.f`.
 
 ---
 
@@ -18,7 +31,7 @@
 - [Key Parameters & Knobs](#key-parameters--knobs)
 - [Test Scenarios](#test-scenarios)
 - [Coverage Strategy](#coverage-strategy)
-- [Two-Branch Setup (Training Note)](#two-branch-setup-training-note)
+- [Exercise Task Structure](#exercise-task-structure)
 - [Known Limitations](#known-limitations)
 
 ---
@@ -141,20 +154,20 @@ The DUT must find the packet boundary via a **sliding window** over `(LENGTH + L
 |---|---|---|
 | `rx_base_test` | `sv/tests/rx_base_test.sv` | Top-level test. Builds environment, randomizes parameters, launches virtual sequence |
 | `rx_environment` | `sv/rx_environment.sv` | Instantiates and connects all agents, scoreboards, reference model, coverage |
-| `rx_virtual_sequence` | `sv/sequences/rx_virtual_sequence.sv` | Orchestrates lock acquisition + stimulus phases |
-| `rx_input_data_sequence` | `sv/sequences/rx_input_data_sequence.sv` | Builds individual packet frames (nibble-level) |
-| `rx_reference_model` | `sv/components/rx_reference_model.sv` | Golden model — predicts expected data/control/parity outputs |
+| `rx_virtual_sequence` | `sv/sequences/virtual_sequence/exercise_rx_virtual_sequence.sv` | Orchestrates lock acquisition + stimulus phases |
+| `rx_input_data_sequence` | `sv/sequences/input_sequence/exercise_rx_input_data_sequence.sv` | Builds individual packet frames (nibble-level) |
+| `rx_reference_model` | `sv/components/reference_model/exercise_rx_reference_model.sv` | Golden model — predicts expected data/control/parity outputs |
 | `rx_scoreboard` | `sv/components/rx_scoreboard.sv` | Compares DUT output vs. reference model (parameterized for 3 channels) |
-| `rx_coverage` | `sv/components/rx_coverage.sv` | Functional coverage collection |
+| `rx_coverage` | `sv/components/coverage/exercise_rx_coverage.sv` | Functional coverage collection |
 | `dv_agent` | `dv_agent/dv_agent.sv` | Generic reusable UVM agent (parameterized by data width) |
-| `rx_generation_parameters` | `sv/rx_generation_parameters.sv` | Test configuration object with all probability knobs |
+| `rx_generation_parameters` | `sv/generation_parameters/exercise_rx_generation_parameters.sv` | Test configuration object with all probability knobs |
 
 ---
 
 ## Repository Structure
 
 ```
-uvm-verification/
+rx-uvm-env/
 ├── rtl/                          # DUT RTL source files
 │   ├── dma_rx_top.sv             # Top-level DUT
 │   ├── dma_rx_fsm.sv             # Lock FSM
@@ -184,103 +197,120 @@ uvm-verification/
 │   ├── rx_verification_pack.sv   # Global constants & parameters
 │   ├── rx_typedefs.sv            # Enums & type aliases
 │   ├── rx_environment.sv         # UVM environment
-│   ├── rx_generation_parameters.sv # Randomizable test parameters
 │   ├── rx_report_server.sv       # Custom UVM report server
 │   ├── tests/
 │   │   └── rx_base_test.sv       # Base test
 │   ├── sequences/
-│   │   ├── rx_virtual_sequence.sv      # Top virtual sequence
-│   │   └── rx_input_data_sequence.sv   # Packet builder sequence
+│   │   ├── virtual_sequence/
+│   │   │   ├── exercise_rx_virtual_sequence.sv
+│   │   │   └── final_rx_virtual_sequence.sv
+│   │   └── input_sequence/
+│   │       ├── exercise_rx_input_data_sequence.sv
+│   │       └── final_rx_input_data_sequence.sv
 │   ├── sequencers/
 │   │   └── rx_virtual_sequencer.sv     # Virtual sequencer
 │   ├── items/
-│   │   ├── rx_item.sv            # High-level packet item
-│   │   └── rx_coverage_item.sv   # Coverage transaction item
+│   │   ├── rx_item/
+│   │   │   ├── exercise_rx_item.sv
+│   │   │   └── final_rx_item.sv
+│   │   └── coverage_item/
+│   │       ├── exercise_rx_coverage_item.sv
+│   │       └── final_rx_coverage_item.sv
+│   ├── generation_parameters/
+│   │   ├── exercise_rx_generation_parameters.sv
+│   │   └── final_rx_generation_parameters.sv
 │   └── components/
-│       ├── rx_reference_model.sv # Golden reference model
-│       ├── rx_scoreboard.sv      # Parameterized scoreboard
-│       └── rx_coverage.sv        # Functional coverage groups
+│       ├── rx_scoreboard.sv       # Parameterized scoreboard
+│       ├── coverage/
+│       │   ├── exercise_rx_coverage.sv
+│       │   └── final_rx_coverage.sv
+│       └── reference_model/
+│           ├── exercise_rx_reference_model.sv
+│           └── final_rx_reference_model.sv
 │
 ├── scripts/
-│   └── run_regression.py         # Parallel regression runner (qsub-based)
+│   ├── run_regression.py         # Parallel regression runner (qsub-based)
+│   └── sim.tcl                   # Simulation waveform setup
 │
 ├── runspace/                     # Simulation work directory (gitignored)
 │   └── logs/                     # Simulation logs
 │
-└── list.f                        # Xcelium file list (compilation order)
+├── list_exercise_A_B.f           # File list for Tasks A & B (uses exercise files)
+├── list_exercise_C.f             # File list for Task C (uses exercise files)
+├── list_full.f                   # File list for reference (all final files)
+├── README.md                     # This file
+└── Student_Guide.md              # Student task guide
 ```
 
 ---
 
 ## Getting Started
 
-### Prerequisites
+```bash
+git clone <repository-url>
+cd rx-uvm-env
 
-- **Simulator**: Cadence Xcelium (`xrun`) with UVM support
-- **Python 3.x** — for regression script
-- **Grid Engine** (`qsub`/`qstat`) — for parallel regression (optional for single runs)
-- UVM 1.2 or higher
+# Create your working branch
+git checkout -b <your-name>/tasks
 
-### First-Time Setup
-
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   cd rx-uvm-env
-   ```
-
-2. Update the file list path in `scripts/run_regression.py`:
-   ```python
-   FILELIST = "/path/to/your/uvm-verification/list.f"
-   ```
-
-3. Make sure the `runspace/` directory exists (it's gitignored):
-   ```bash
-   mkdir -p runspace/logs
-   ```
+# Read the Student_Guide.md for detailed task instructions
+cat Student_Guide.md
+```
 
 ---
 
 ## Running a Simulation
 
-Navigate to the `runspace/` directory. Three run modes are available:
-
-### Regular
+### Basic simulation (Task A/B) — No waveforms
 
 ```bash
 cd runspace
 
 xrun -uvm \
-     -f ../list.f \
-     +define+UVM_PACKER_MAX_BYTES=10000
+     -f ../list_exercise_A_B.f \
+     +define+UVM_PACKER_MAX_BYTES=10000 \
+     -svseed random
 ```
 
-### With Waveforms (SimVision)
+### Basic simulation with waveforms (Task A/B)
 
 ```bash
 cd runspace
 
 xrun -uvm \
-     -f ../list.f \
+     -f ../list_exercise_A_B.f \
+     +define+UVM_PACKER_MAX_BYTES=10000 \
      -input ../scripts/sim.tcl \
      -access +rwc \
-     +define+UVM_PACKER_MAX_BYTES=10000
+     -svseed random
 ```
 
-The `-input ../scripts/sim.tcl` script sets up the waveform dump automatically. The `-access +rwc` flag grants SimVision full read/write/call access to the design hierarchy.
+Then view waveforms in SimVision: `simvision dump`
 
-### With Coverage
+### Basic simulation with coverage (Task A/B)
 
 ```bash
 cd runspace
 
 xrun -uvm \
-     -f ../list.f \
+     -f ../list_exercise_A_B.f \
      +define+UVM_PACKER_MAX_BYTES=10000 \
      -coverage all \
      -covoverwrite \
      -covworkdir ./cov_work \
      -covtest manual_run
+```
+
+### Simulation for Task C
+
+```bash
+cd runspace
+
+xrun -uvm \
+     -f ../list_exercise_C.f \
+     +define+UVM_PACKER_MAX_BYTES=10000 \
+     -coverage all \
+     -covoverwrite
 ```
 
 A successful run will print **`S U C C E S S`** near the end of the log.
@@ -340,7 +370,7 @@ python3 ../scripts/run_regression.py
 |---|---|---|
 | `-n, --runs N` | Number of total runs | `1` |
 | `-p, --parallel N` | Max simultaneous grid jobs | `20` |
-| `-f, --filelist PATH` | Override `list.f` path | hardcoded |
+| `-f, --filelist PATH` | Override `list_exercise_A_B.f` path | hardcoded |
 | `-x, --xrun-flags FLAGS` | Extra flags passed to every xrun invocation | `""` |
 
 **Examples:**
@@ -369,7 +399,7 @@ imc -i -exec merge.tcl
 
 ## Key Parameters & Knobs
 
-All test parameters are centralized in `rx_generation_parameters.sv` and can be adjusted without touching test code:
+All test parameters are centralized in `rv_generation_parameters.sv` and can be adjusted without touching test code:
 
 ### Stimulus Probabilities
 
@@ -448,25 +478,23 @@ The environment collects functional coverage in `rx_coverage.sv`. Key coverage g
 
 ---
 
-## Two-Branch Setup (Training Note)
+## Training Exercises
 
-This project has two main branches designed for a **guided training exercise**:
+This project includes three optional implementation tasks:
 
-| Branch | Description |
-|---|---|
-| `main` (full environment) | Complete environment including the **reference model** (`rx_reference_model.sv`) |
-| `env_without_reference_model` | Same environment but **reference model removed** — students implement it |
+| Task | Component | Purpose |
+|------|-----------|---------|
+| **A** | Reference Model | Golden predictor — matches DUT behavior |
+| **B** | Coverage Collection | Measures which test scenarios were exercised |
+| **C** | Stimulus Generation | Creates and sends test packets |
 
-### Training Exercise
+**See STUDENT_GUIDE_FRIENDLY.md for implementation details.** Each task is 40-60% pre-implemented; you fill in the core algorithms.
 
-Students start from `env_without_reference_model` and must implement `rx_reference_model.sv` from scratch — building the golden model that predicts DUT outputs based on the input stream.
+To run with all **final implementations** (skip exercises): `xrun -f list_full.f ...`
 
-This exercises:
-- Understanding the full packet protocol
-- CRC calculation (2 different polynomials)
-- XOR parity accumulation
-- FSM lock behavior modeling
-- UVM TLM port/export connections
+To run with **exercise files** (implement Task A/B): `xrun -f list_exercise_A_B.f ...`
+
+To run with **exercise files** (implement Task C): `xrun -f list_exercise_C.f ...`
 
 ---
 

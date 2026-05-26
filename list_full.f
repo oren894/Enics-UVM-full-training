@@ -32,19 +32,19 @@
 ../dv_agent/dv_agent.sv
 
 
-../sv/rx_generation_parameters.sv
+../sv/generation_parameters/final_rx_generation_parameters.sv
 ../sv/components/rx_scoreboard.sv
 ../sv/sequencers/rx_virtual_sequencer.sv
-../sv/items/rx_item.sv
-../sv/items/rx_coverage_item.sv
-../sv/components/rx_coverage.sv
+../sv/items/rx_item/final_rx_item.sv
+../sv/items/coverage_item/final_rx_coverage_item.sv
+../sv/components/coverage/final_rx_coverage.sv
 ../sv/rx_report_server.sv
 
-../sv/sequences/rx_input_data_sequence.sv
+../sv/sequences/input_sequence/final_rx_input_data_sequence.sv
 
 ../sv/rx_typedefs.sv
-../sv/sequences/rx_virtual_sequence.sv
-../sv/components/rx_reference_model.sv
+../sv/sequences/virtual_sequence/final_rx_virtual_sequence.sv
+../sv/components/reference_model/final_rx_reference_model.sv
 
 ../sv/rx_environment.sv
 ../sv/tests/rx_base_test.sv

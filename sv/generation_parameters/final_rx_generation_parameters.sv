@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    : rx_generation_parameters.sv
+// File name    : final_rx_generation_parameters.sv
 // Project name : rx_uvm_environment
 // Author       : Oren Ruthstein
 // Date Created : 04/2026

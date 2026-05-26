@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    : rx_coverage_item.sv
+// File name    : final_rx_coverage_item.sv
 // Project name : rx_uvm_environment
 // Author       : Oren Ruthstein
 // Date Created : 04/2026

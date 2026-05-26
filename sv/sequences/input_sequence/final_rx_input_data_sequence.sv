@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    : rx_input_data_sequence.sv
+// File name    : final_rx_input_data_sequence.sv
 // Project name : rx_uvm_environment
 // Author       : Oren Ruthstein
 // Date Created : 04/2026

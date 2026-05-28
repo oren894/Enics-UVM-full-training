@@ -5,9 +5,10 @@
 
 **TL;DR:** Complete UVM test environment. Can run as-is with final implementations, or work through 3 optional implementation tasks (reference model, coverage, stimulus).
 
----
+## ⚠️ **Note:** Training Exercises Included, If you are starting the training, please go to the `README.md` file in the `introduction` folder first.
 
-## ⚠️ Note: Training Exercises Included
+
+
 
 This repository contains **three progressive implementation tasks** for learning UVM verification:
 - **Task A:** Implement the reference model (golden predictor)

@@ -1,22 +1,21 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    :   randomization.sv
+// File name    :   processes.sv
 // Project name :   SV_basics
-// Author       :
-// Date Created :
-// Company      :   Sector Training
+// Author       :   
+// Date Created :   
+// Company      :   Team Training
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Part 4
+// Description: Part 5 
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-`ifndef __RANDOMIZATION 
-`define __RANDOMIZATION
+`ifndef __PROCESSES 
+`define __PROCESSES
 
-module randomization;
-    parameter int VERIFICATION_TEAM = 12;
+module processes;
 
     /*------------------------------------------------------------------------------
     --  Exercise 1.
@@ -30,12 +29,9 @@ module randomization;
     --  Exercise 2.
     ------------------------------------------------------------------------------*/
     initial begin
-
-        // Given names array.
-        string names[VERIFICATION_TEAM] = '{"lior", "reut", "daniel", "oran", "yehonatan", "eliran", "shaked", "naor", "michael", "eran", "jonathan", "ziv"};
-
+        
         // INSERT YOUR CODE HERE!
     end
 endmodule
 
-`endif // __RANDOMIZATION
+`endif // __PROCESSES

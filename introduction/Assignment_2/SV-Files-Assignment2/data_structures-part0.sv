@@ -1,34 +1,37 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// File name    :   events.sv
+// File name    :   data_structures.sv
 // Project name :   SV_basics
 // Author       :   
 // Date Created :   
-// Company      :   Team Training
+// Company      :   Sector Training
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Description: Part 6 
+// Description: Part 0 
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-`ifndef __EVENTS 
-`define __EVENTS
+`ifndef __DATA_STRUCTURES
+`define __DATA_STRUCTURES
 
-module events;
+module data_structures;
 
     /*------------------------------------------------------------------------------
     --  Exercise 1.
     ------------------------------------------------------------------------------*/
-    initial begin 
+    initial begin
 
-        // You can edit this part, do not change the functions names. 
-        fork
-            randomize_votes(); 
+        //INSERT YOUR CODE HERE!
+    end
 
-            votes_timing(); 
-        join 
+    /*------------------------------------------------------------------------------
+    --  Exercise 2.
+    ------------------------------------------------------------------------------*/
+    initial begin
+
+        //INSERT YOUR CODE HERE!
     end
 endmodule
 
-`endif // __EVENTS
+`endif // __DATA_STRUCTURES

@@ -2,6 +2,8 @@
 
 Welcome to the standard workflow for compiling and simulating SystemVerilog/Verilog designs. This guide covers the best practices for keeping your workspace clean and running simulations efficiently.
 
+**Looking for the actual assignment tasks and material?** See [MATERIAL.md](MATERIAL.md) — this file is only about the simulator workflow.
+
 ---
 
 ## 1. Initializing the Environment

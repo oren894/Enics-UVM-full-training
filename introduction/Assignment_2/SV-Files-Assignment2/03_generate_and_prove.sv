@@ -1,0 +1,86 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// File name    :   03_generate_and_prove.sv
+// Project name :   SV_basics
+// Author       :
+// Date Created :
+// Company      :   Team Training
+//
+////////////////////////////////////////////////////////////////////////////////
+//
+// Topics: Randomization, Assertions.
+// See ../MATERIAL.md for the full task write-up and background reading.
+//
+////////////////////////////////////////////////////////////////////////////////
+
+`ifndef __GENERATE_AND_PROVE
+`define __GENERATE_AND_PROVE
+
+`timescale 1ns/1ps
+
+module generate_and_prove;
+
+    logic clk = 1'b0;
+    always #5 clk = ~clk;
+
+    class stim_packet;
+        rand bit [3:0] length;
+        rand bit       urgent;
+
+        constraint c_length { length inside {[2:12]}; }
+        constraint c_urgent { urgent dist {1 := 20, 0 := 80}; }
+    endclass
+
+    int lengths[$];
+
+    /*------------------------------------------------------------------------------
+    --  Part A - Randomization
+    --  Create and randomize() 5 stim_packet objects. For each one, $display it
+    --  (length + urgent) and push its `length` field into the lengths queue
+    --  below - Part B's generator consumes this queue to build its stimulus.
+    ------------------------------------------------------------------------------*/
+    initial begin
+        // INSERT YOUR CODE HERE!
+    end
+
+    /*------------------------------------------------------------------------------
+    --  Part B - Assertions (the hard part!)
+    --  The generator below (already written for you) raises req, holds it for
+    --  lengths[i]+1 cycles, then pulses done for exactly one cycle while
+    --  dropping req in that same cycle, before moving on to the next packet.
+    --
+    --  Write two assertion properties:
+    --   1. p_mutex          - req and done must never be high at the same time.
+    --   2. p_eventual_done  - whenever req is high, done must go high within
+    --                         1 to 20 clock cycles.
+    ------------------------------------------------------------------------------*/
+    logic req  = 1'b0;
+    logic done = 1'b0;
+    int   busy_cycles;
+
+    always_ff @(posedge clk) begin
+        done <= 1'b0;
+        if (!req && lengths.size() > 0) begin
+            busy_cycles <= lengths.pop_front();
+            req         <= 1'b1;
+        end else if (req && busy_cycles > 0) begin
+            busy_cycles <= busy_cycles - 1;
+        end else if (req && busy_cycles == 0) begin
+            req  <= 1'b0;
+            done <= 1'b1;
+        end
+    end
+
+    // INSERT YOUR CODE HERE! (p_mutex and p_eventual_done assert property blocks)
+
+    initial begin
+        wait (lengths.size() > 0);
+        wait (lengths.size() == 0 && !req && !done);
+        #20;
+        $display("Run finished. If no ASSERTION FAILURE lines appeared above, both properties held for the whole run.");
+        $finish;
+    end
+
+endmodule
+
+`endif // __GENERATE_AND_PROVE

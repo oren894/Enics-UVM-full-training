@@ -73,11 +73,21 @@ module generate_and_prove;
 
     // INSERT YOUR CODE HERE! (p_mutex and p_eventual_done assert property blocks)
 
+    // A watchdog so this never hangs forever if Part A hasn't been filled in
+    // yet (lengths would stay empty and the wait below would never unblock).
     initial begin
-        wait (lengths.size() > 0);
-        wait (lengths.size() == 0 && !req && !done);
-        #20;
-        $display("Run finished. If no ASSERTION FAILURE lines appeared above, both properties held for the whole run.");
+        fork
+            begin
+                wait (lengths.size() > 0);
+                wait (lengths.size() == 0 && !req && !done);
+                #20;
+                $display("Run finished. If no ASSERTION FAILURE lines appeared above, both properties held for the whole run.");
+            end
+            begin
+                #2000;
+                $display("TIMEOUT - lengths never got populated. Did you finish Part A (randomize + push_back into lengths)?");
+            end
+        join_any
         $finish;
     end
 

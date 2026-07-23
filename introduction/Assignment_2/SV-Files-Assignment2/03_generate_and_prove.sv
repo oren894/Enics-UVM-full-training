@@ -20,7 +20,8 @@
 
 module generate_and_prove;
 
-    logic clk = 1'b0;
+    logic clk;
+    initial clk = 1'b0;
     always #5 clk = ~clk;
 
     class stim_packet;
@@ -35,9 +36,13 @@ module generate_and_prove;
 
     /*------------------------------------------------------------------------------
     --  Part A - Randomization
-    --  Create and randomize() 5 stim_packet objects. For each one, $display it
+    --  Create and randomize 5 stim_packet objects. For each one, $display it
     --  (length + urgent) and push its `length` field into the lengths queue
     --  below - Part B's generator consumes this queue to build its stimulus.
+    --
+    --  Call randomize() as a plain statement, not guarded by an "if" - with
+    --  these constraints it cannot fail, so wrapping it in
+    --  "if (pkt.randomize())" would just be dead code here.
     ------------------------------------------------------------------------------*/
     initial begin
         // INSERT YOUR CODE HERE!
@@ -54,9 +59,13 @@ module generate_and_prove;
     --   2. p_eventual_done  - whenever req is high, done must go high within
     --                         1 to 20 clock cycles.
     ------------------------------------------------------------------------------*/
-    logic req  = 1'b0;
-    logic done = 1'b0;
+    logic req, done;
     int   busy_cycles;
+
+    initial begin
+        req = 1'b0;
+        done = 1'b0;
+    end
 
     always_ff @(posedge clk) begin
         done <= 1'b0;

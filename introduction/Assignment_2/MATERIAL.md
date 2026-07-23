@@ -1,6 +1,6 @@
 # Assignment 2 — Material & Tasks
 
-This file replaces the old part-by-part PDF: for each of the three exercise files, it teaches just enough of each concept to recognize it and use it, then tells you exactly what to build. You don't need to master any of this deeply yet — you need to be able to look at each construct later and know what it's doing. Depth comes later, in Assignment 3 (Riddles) and the practical project.
+This file replaces the old part-by-part PDF: for each of the three exercise files, it teaches just enough of each concept to recognize it and use it, then tells you exactly what to build. The examples below are deliberately **not** the exercises themselves — they're a different scenario using the same construct, so you still have to think about how to adapt the idea rather than copy it in. That's the point: you need to be able to look at each construct later and know what it's doing, not paste a snippet. Depth comes later, in Assignment 3 (Riddles) and the practical project.
 
 Read [README.md](README.md) first for the run workflow (`tsmc65`, `list.f`, `runspace`, `xrun`). Each file below is self-contained — compile and run it on its own, e.g.:
 
@@ -24,7 +24,7 @@ SystemVerilog gives you several containers beyond plain fixed-size arrays:
 | Associative array | `int arr[string];` | Indexed by a key type instead of an integer. |
 | Struct | `typedef struct {int a; bit b;} my_t;` | Groups fields together. |
 
-You'll use plain arrays here — nothing fancy, just indexing: `raw_telemetry[1]`.
+You'll use a plain fixed array here — nothing fancy, just indexing, e.g. `raw_telemetry[4]`.
 
 ### Loops (quick reference)
 
@@ -34,7 +34,7 @@ foreach (raw_telemetry[i]) ...           // iterates every index of the array au
 while (condition) ...                    // condition-driven loop
 ```
 
-`foreach` is the one you'll reach for most often in verification code — it can't run off the end of the array by mistake.
+`foreach` is the one you'll reach for most often in verification code — it can't run off the end of the array by mistake. Note that `foreach` walks every index in order; if you only need *some* of the indices, you still need an `if` inside the loop (or a plain counting `for`) to pick them.
 
 ### Your Task — Part A
 
@@ -42,22 +42,22 @@ while (condition) ...                    // condition-driven loop
 
 ### Streaming Operations (quick reference)
 
-Streaming operators convert between a variable and a raw bit stream, letting you re-slice or re-order data:
+Streaming operators convert between a variable and a raw bit stream, letting you re-slice or re-order data. The number right after `<<` or `>>` is the **slice size** — the chunk size the reordering operates on:
 
 ```systemverilog
-bit [15:0] packed;
-byte       bytes[2] = '{8'hAB, 8'hCD};
+bit [31:0] packed;
+byte       four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
 
-packed = {bytes};            // straightforward concatenation: 16'hABCD
-packed = {<<byte{bytes}};    // byte-order REVERSED: 16'hCDAB  <- endian swap idiom
-packed = {<<{bytes}};        // bit-order reversed
+packed = {four_bytes};             // plain concatenation, no reordering: 32'h11223344
+packed = {<<byte{four_bytes}};     // reverse the ORDER of 8-bit chunks: 32'h44332211
+packed = {<<4{four_bytes}};        // reverse the ORDER of 4-bit (nibble) chunks
 ```
 
-`{<<byte{...}}` is the standard SystemVerilog idiom for swapping endianness — reversing the order of byte-sized chunks without touching the bits inside each byte. It shows up constantly in real driver/monitor code whenever a protocol's byte order doesn't match your internal representation.
+`{<<byte{...}}` is the standard idiom for swapping endianness — reversing byte order without touching the bits inside each byte. It shows up constantly in real driver/monitor code whenever a protocol's byte order doesn't match your internal representation. The slice size isn't limited to `byte` or a fixed nibble — the LRM lets you pick any width, **including leaving it out entirely**, which changes the granularity of what gets reversed. Worth looking up before Part B.
 
 ### Your Task — Part B (hardest part of this file)
 
-`payload` holds the right 3 bytes, but in reversed byte order — `payload[0]` is really the *least* significant byte of the real code, not the most significant. Use a streaming operator to reverse the byte order of `payload` into the 24-bit `decoded_code`. If Part A and Part B are both correct, `decoded_code` will be exactly `0xC0FFEE` — and the simulation will tell you so.
+`payload` is scrambled twice over: the three bytes are in the wrong order, *and* the bits inside each byte are also reversed. One streaming expression, with the right slice size, undoes both at once. Go find out what slice size does that.
 
 ---
 
@@ -72,17 +72,22 @@ packed = {<<{bytes}};        // bit-order reversed
 | Typical use | Pure computation | Anything that waits on a clock, delay, or event |
 
 ```systemverilog
-function int double_it(int x);
-    return x * 2;
+function bit is_prime(int n);
+    if (n < 2) return 0;
+    for (int d = 2; d < n; d++)
+        if (n % d == 0) return 0;
+    return 1;
 endfunction
 
-task automatic wait_and_print(string msg, int delay);
-    #delay;
-    $display(msg);
+task automatic blink(string label, int period);
+    repeat (3) begin
+        #period;
+        $display("%0s blink", label);
+    end
 endtask
 ```
 
-**`automatic` matters.** By default, a task's local variables and *arguments* are static — shared across every call to that task, even concurrent ones. If two processes call the same non-automatic task at the same time, they'll stomp on each other's arguments. `automatic` gives each call its own private copy. Any task you plan to run from multiple parallel processes should be `automatic`.
+**`automatic` matters.** By default, a task's local variables and *arguments* are static — shared across every call to that task, even concurrent ones. If two processes call the same non-automatic task at the same time (like `blink("A", 5)` and `blink("B", 7)` running in parallel), they'll stomp on each other's `label`/`period`. `automatic` gives each call its own private copy. Any task you plan to run from multiple parallel processes should be `automatic`.
 
 ### Your Task — Part A
 
@@ -96,7 +101,7 @@ fork
     do_b();
     do_c();
 join       // waits for ALL three to finish
-// join_any  waits for the FIRST one to finish
+// join_any  waits for the FIRST one to finish, the rest keep running
 // join_none returns immediately, all three keep running in the background
 ```
 
@@ -105,20 +110,23 @@ join       // waits for ALL three to finish
 ### Events (quick reference)
 
 ```systemverilog
-event my_event;
+event data_ready;
+int   shared_value;
 
-// process A:
--> my_event;              // trigger it
+// producer process:
+shared_value = 42;
+-> data_ready;                     // trigger it, AFTER the data is actually set
 
-// process B:
-@(my_event);               // block until it's triggered
+// consumer process:
+@(data_ready);
+$display("got %0d", shared_value); // guaranteed to see 42, not a stale value
 ```
 
-An event has no value and no memory — if it's triggered before anyone is waiting on it, that trigger is lost. That's a real hazard in general, but harmless here: the racers all need a minimum delay before they can finish, so the process waiting on `@(race_finished)` is guaranteed to already be waiting well before the first trigger can possibly happen.
+An event has no value and no memory of its own — it's just a synchronization point. If it's triggered before anyone is waiting on it, that trigger is lost, so ordering matters: the producer above sets `shared_value` *before* triggering, and the consumer only reads it *after* waiting, so it can never observe a half-updated value.
 
 ### Your Task — Part B (hardest part of this file)
 
-Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then `@(race_finished)` before printing the result. Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in.
+Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then `@(race_finished)` before printing the result. Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in. (Convince yourself there's no lost-trigger hazard here, the way there could theoretically be in the `data_ready` example above — what guarantees the process waiting on `@(race_finished)` is already waiting before any racer could possibly finish?)
 
 ---
 
@@ -127,48 +135,47 @@ Launch all three racers with `fork...join_none` so they run concurrently (not on
 ### Randomization (quick reference)
 
 ```systemverilog
-class stim_packet;
-    rand bit [3:0] length;
-    rand bit       urgent;
+class dice_roll;
+    rand bit [2:0] value;
+    rand bit       is_bonus_round;
 
-    constraint c_length { length inside {[2:12]}; }        // range constraint
-    constraint c_urgent { urgent dist {1 := 20, 0 := 80}; } // weighted probability
+    constraint c_value { value inside {[1:6]}; }                    // range constraint
+    constraint c_bonus { is_bonus_round dist {1 := 10, 0 := 90}; }  // weighted probability
 endclass
-
-stim_packet pkt = new();
-void'(pkt.randomize());
 ```
 
 `inside {[a:b]}` restricts a field to a range. `dist` gives you weighted probabilities instead of a uniform 50/50 — useful when you want something to happen "rarely" (like an error injection) instead of "half the time." This is exactly the mechanism the real project's `generation_parameters.sv` is built on.
 
+To use a class like this, you still need the two ordinary steps you already know: construct an object (`new()`), then call `randomize()` on it as a plain statement. With constraints this simple, `randomize()` cannot fail, so there's no reason to guard it with `if (obj.randomize())` here — that pattern exists for when randomization genuinely *can* fail (conflicting constraints, `randomize()` called with extra `inline` constraints, etc.), which isn't the case in this exercise.
+
 ### Your Task — Part A
 
-Create and `randomize()` 5 `stim_packet` objects. For each one, `$display` it (length + urgent), then push its `length` field into the `lengths` queue — Part B's generator consumes this queue.
+Create and randomize 5 `stim_packet` objects (defined in the `.sv` file — similar shape to `dice_roll` above, different fields). For each one, `$display` it (length + urgent), then push its `length` field into the `lengths` queue — Part B's generator consumes this queue.
 
 ### Assertions (quick reference — the hardest topic in this training)
 
 SystemVerilog Assertions (SVA) let you state a timing/behavioral rule and have the simulator check it automatically, every cycle, for the whole run:
 
 ```systemverilog
-// "whenever a is true, b must become true within 1 to 20 cycles"
-assert property (@(posedge clk) a |-> ##[1:20] b);
+// "whenever read_valid is true, data_ack must become true within 2 to 8 cycles"
+assert property (@(posedge clk) read_valid |-> ##[2:8] data_ack);
 
-// "a and b must never both be true"
-assert property (@(posedge clk) !(a && b));
+// "grant_a and grant_b must never both be true at once"
+assert property (@(posedge clk) !(grant_a && grant_b));
 ```
 
 - `|->` is implication: "if the left side matches, the right side must also match."
-- `##[m:n]` is a bounded delay: "somewhere between m and n cycles later."
+- `##[m:n]` is a bounded delay: "somewhere between m and n cycles later." (A plain `##k` means exactly `k` cycles later.)
 - If an `assert property` ever fails, the simulator prints an assertion failure on its own — you don't have to check anything manually.
 
 ### Your Task — Part B (hardest part of this file — and of this whole assignment)
 
-A generator (already written for you, in the `always_ff` block) drives `req`/`done` from the `lengths` queue: it raises `req`, holds it for `lengths[i]+1` cycles, then pulses `done` for exactly one cycle while dropping `req` in that same cycle. Write two assertions:
+A generator (already written for you, in the `always_ff` block) drives `req`/`done` from the `lengths` queue. Read the timing description in the `.sv` file's comment block carefully — it tells you exactly how long `req` stays high and when `done` pulses. Write two assertions:
 
 1. `p_mutex` — `req` and `done` must never both be high at the same cycle.
 2. `p_eventual_done` — whenever `req` is high, `done` must go high within 1 to 20 cycles.
 
-If both hold for the entire run (no `ASSERTION FAILURE` printed), you've correctly specified — and proven — the timing contract of a block you never even had to look inside.
+Use the `read_valid`/`data_ack` and `grant_a`/`grant_b` examples above as your template for the *shape* of each property — but you'll need different signal names and, for one of them, a different bound. If both properties hold for the entire run (no `ASSERTION FAILURE` printed), you've correctly specified — and proven — the timing contract of a block you never even had to look inside.
 
 ---
 

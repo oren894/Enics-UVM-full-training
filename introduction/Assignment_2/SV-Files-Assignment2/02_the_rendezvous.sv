@@ -44,17 +44,30 @@ module the_rendezvous;
 
     /*------------------------------------------------------------------------------
     --  Part B - Processes + Events (the hard part!)
-    --  Launch all three racers to run AT THE SAME TIME (not one after another),
-    --  then wait for the race_finished event before printing the result.
+    --  Two SEPARATE, INDEPENDENT processes below need to be written. They have
+    --  no fork/join relationship to each other - neither one is nested inside
+    --  the other - so "starter" finishing does not mean "commentator" can just
+    --  keep going, and there is no join that lets "commentator" block on the
+    --  racers directly. race_finished is the only thing connecting them.
+    --
+    --  "starter" - launch all three racers to run AT THE SAME TIME (not one
+    --  after another), then let this process end. It does not wait for them.
     ------------------------------------------------------------------------------*/
     initial begin
+        // INSERT YOUR CODE HERE!
+    end
 
+    /*------------------------------------------------------------------------------
+    --  "commentator" - has no way to know when the racers above finish except
+    --  by waiting on race_finished. Wait for it, then print the result.
+    ------------------------------------------------------------------------------*/
+    initial begin
         // INSERT YOUR CODE HERE!
 
         if (finish_order.size() == 3)
             $display("S U C C E S S - finish order: %0s, %0s, %0s", finish_order[0], finish_order[1], finish_order[2]);
         else
-            $display("Race never finished - only %0d racer(s) crossed the line. Did you launch all three in parallel and wait on the event?", finish_order.size());
+            $display("Race never finished - only %0d racer(s) crossed the line. This process has no fork/join relationship to the racers - how else could it find out they're done?", finish_order.size());
 
         $finish;
     end

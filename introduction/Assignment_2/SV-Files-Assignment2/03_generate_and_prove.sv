@@ -28,8 +28,13 @@ module generate_and_prove;
         rand bit [3:0] length;
         rand bit       urgent;
 
-        constraint c_length { length inside {[2:12]}; }
-        constraint c_urgent { urgent dist {1 := 20, 0 := 80}; }
+        /*--------------------------------------------------------------------------
+        --  Write two constraints:
+        --   - length must always be inside the range 2 to 12 (inclusive)
+        --   - urgent should be 1 about 20% of the time, 0 the other 80%
+        --  See the Randomization section in MATERIAL.md for the syntax.
+        --------------------------------------------------------------------------*/
+        // INSERT YOUR CODE HERE!
     endclass
 
     int lengths[$];

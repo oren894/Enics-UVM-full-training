@@ -53,11 +53,31 @@ packed = {<<byte{four_bytes}};     // reverse the ORDER of 8-bit chunks: 32'h443
 packed = {<<4{four_bytes}};        // reverse the ORDER of 4-bit (nibble) chunks
 ```
 
-`{<<byte{...}}` is the standard idiom for swapping endianness — reversing byte order without touching the bits inside each byte. It shows up constantly in real driver/monitor code whenever a protocol's byte order doesn't match your internal representation. The slice size isn't limited to `byte` or a fixed nibble — the LRM lets you pick any width, **including leaving it out entirely**, which changes the granularity of what gets reversed. Worth looking up before Part B.
+`{<<byte{...}}` is the standard idiom for swapping endianness — reversing byte order without touching the bits inside each byte. It shows up constantly in real driver/monitor code whenever a protocol's byte order doesn't match your internal representation.
+
+The slice size isn't limited to `byte` or a fixed nibble — you can also leave it out entirely, which changes what gets reordered. With no slice size, the default is 1 bit, so the reordering happens at the finest possible granularity: every single bit in the stream gets reversed, not just every byte-sized or nibble-sized chunk. You can see that on a single byte:
+
+```systemverilog
+bit [7:0] one_byte = 8'hC2;         // 1100_0010
+bit [7:0] flipped  = {<<{one_byte}};
+// flipped = 8'h43 (0100_0011) - bit 7 swapped with bit 0, bit 6 with bit 1,
+// bit 5 with bit 2, bit 4 with bit 3. That's what "reverse every bit" means
+// for one byte on its own.
+```
+
+Now stretch that same idea across a multi-byte array instead of a single byte:
+
+```systemverilog
+byte       four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
+bit [31:0] fully_reversed = {<<{four_bytes}};
+// fully_reversed = 32'h22CC4488
+```
+
+That result isn't some new, unrelated operation — it's exactly the same "reverse every bit" idea from the single-byte example above, just applied across all 32 bits instead of 8. And because of that, it happens to be identical to doing two separate things back to back: reverse the *order* of the 4 bytes (like `{<<byte{...}}` does), **and then** apply the single-byte bit-reversal from above to each of those 4 bytes individually. Reversing a whole stream bit-by-bit and reversing "chunk order, then bits within each chunk" always land on the same answer — a full reversal doesn't care how you group the bits while you're reversing them.
 
 ### Your Task — Part B (hardest part of this file)
 
-`payload` is scrambled twice over: the three bytes are in the wrong order, *and* the bits inside each byte are also reversed. One streaming expression, with the right slice size, undoes both at once. Go find out what slice size does that.
+`payload` is scrambled the same way: the three bytes are in the wrong order, *and* the bits inside each byte are also reversed — exactly like `four_bytes` above, just with 3 bytes instead of 4. Write one streaming expression that reverses it into `decoded_code`.
 
 ---
 
@@ -105,28 +125,35 @@ join       // waits for ALL three to finish
 // join_none returns immediately, all three keep running in the background
 ```
 
-`fork...join_none` is how you launch things that should genuinely run *at the same time* without blocking the process that launched them.
+`fork` is what makes the three branches genuinely run *at the same time* — `join`, `join_any` and `join_none` only differ in whether/when the process that did the forking gets to continue. They don't change how the forked branches themselves run.
 
 ### Events (quick reference)
+
+`fork...join` only synchronizes a parent with its own children. It's useless for coordinating two processes that have **no fork/join relationship to each other at all** — two independent `initial` blocks, for example. That's what events are for:
 
 ```systemverilog
 event data_ready;
 int   shared_value;
 
-// producer process:
+// producer process (some unrelated initial block):
 shared_value = 42;
 -> data_ready;                     // trigger it, AFTER the data is actually set
 
-// consumer process:
+// consumer process (a completely different initial block):
 @(data_ready);
 $display("got %0d", shared_value); // guaranteed to see 42, not a stale value
 ```
 
-An event has no value and no memory of its own — it's just a synchronization point. If it's triggered before anyone is waiting on it, that trigger is lost, so ordering matters: the producer above sets `shared_value` *before* triggering, and the consumer only reads it *after* waiting, so it can never observe a half-updated value.
+There is no `join` that could connect these two processes — they aren't nested inside each other. The event is the only bridge between them. It has no value and no memory of its own, just a synchronization point: if it's triggered before anyone is waiting on it, that trigger is lost, so ordering matters — the producer sets `shared_value` *before* triggering, and the consumer only reads it *after* waiting, so it can never observe a half-updated value.
 
 ### Your Task — Part B (hardest part of this file)
 
-Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then `@(race_finished)` before printing the result. Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in. (Convince yourself there's no lost-trigger hazard here, the way there could theoretically be in the `data_ready` example above — what guarantees the process waiting on `@(race_finished)` is already waiting before any racer could possibly finish?)
+You're writing two independent processes, "starter" and "commentator" (see the `.sv` file) — neither is nested inside the other, so there's no `join` between them, exactly like the `data_ready` example above.
+
+- **starter**: launch all three racers with `fork...join_none` so they run concurrently (not one after another), then let the process end.
+- **commentator**: the only way it can find out the racers are done is `@(race_finished)`. Wait for it, then print the result.
+
+Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in. Also convince yourself there's no lost-trigger hazard here, the way there could theoretically be in the `data_ready` example above — what guarantees "commentator" is already waiting on `@(race_finished)` before any racer could possibly finish?
 
 ---
 
@@ -150,7 +177,11 @@ To use a class like this, you still need the two ordinary steps you already know
 
 ### Your Task — Part A
 
-Create and randomize 5 `stim_packet` objects (defined in the `.sv` file — similar shape to `dice_roll` above, different fields). For each one, `$display` it (length + urgent), then push its `length` field into the `lengths` queue — Part B's generator consumes this queue.
+`stim_packet` (in the `.sv` file) has its `rand` fields declared but its constraints are empty — that part is yours to write, using `dice_roll` above as your syntax reference, not as something to copy field-for-field:
+- `length` must always be inside the range 2 to 12 (inclusive)
+- `urgent` should be 1 about 20% of the time, 0 the other 80%
+
+Then create and randomize 5 `stim_packet` objects. For each one, `$display` it (length + urgent), then push its `length` field into the `lengths` queue — Part B's generator consumes this queue.
 
 ### Assertions (quick reference — the hardest topic in this training)
 

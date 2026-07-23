@@ -2,9 +2,9 @@
 //
 // File name    :   case3_vault_fsm.sv
 // Project name :   SV_riddles
-// Author       :
-// Date Created :
-// Company      :   Team Training
+// Author       :   Oren Ruthstein
+// Date Created :   07/2026
+// Company      :   ENICS
 //
 ////////////////////////////////////////////////////////////////////////////////
 //

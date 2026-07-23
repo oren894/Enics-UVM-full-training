@@ -2,9 +2,9 @@
 //
 // File name    :   01_decode_the_signal.sv
 // Project name :   SV_basics
-// Author       :
-// Date Created :
-// Company      :   Team Training
+// Author       :   Oren Ruthstein
+// Date Created :   07/2026
+// Company      :   ENICS
 //
 ////////////////////////////////////////////////////////////////////////////////
 //

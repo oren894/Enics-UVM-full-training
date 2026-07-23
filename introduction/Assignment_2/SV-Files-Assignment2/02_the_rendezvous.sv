@@ -2,9 +2,9 @@
 //
 // File name    :   02_the_rendezvous.sv
 // Project name :   SV_basics
-// Author       :
-// Date Created :
-// Company      :   Team Training
+// Author       :   Oren Ruthstein
+// Date Created :   07/2026
+// Company      :   ENICS
 //
 ////////////////////////////////////////////////////////////////////////////////
 //

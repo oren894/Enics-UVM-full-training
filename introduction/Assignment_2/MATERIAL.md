@@ -42,42 +42,19 @@ while (condition) ...                    // condition-driven loop
 
 ### Streaming Operations (quick reference)
 
-Streaming operators convert between a variable and a raw bit stream, letting you re-slice or re-order data. The number right after `<<` or `>>` is the **slice size** — the chunk size the reordering operates on:
+The number after `<<` is the slice size the reordering operates on:
 
 ```systemverilog
-bit [31:0] packed;
-byte       four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
+byte four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
 
-packed = {four_bytes};             // plain concatenation, no reordering: 32'h11223344
-packed = {<<byte{four_bytes}};     // reverse the ORDER of 8-bit chunks: 32'h44332211
-packed = {<<4{four_bytes}};        // reverse the ORDER of 4-bit (nibble) chunks
+{four_bytes}            // 32'h11223344 - plain concatenation, no reordering
+{<<byte{four_bytes}}    // 32'h44332211 - byte order reversed, bits inside each byte untouched
+{<<{four_bytes}}        // 32'h22CC4488 - every single bit reversed (no slice size given = 1 bit)
 ```
-
-`{<<byte{...}}` is the standard idiom for swapping endianness — reversing byte order without touching the bits inside each byte. It shows up constantly in real driver/monitor code whenever a protocol's byte order doesn't match your internal representation.
-
-The slice size isn't limited to `byte` or a fixed nibble — you can also leave it out entirely, which changes what gets reordered. With no slice size, the default is 1 bit, so the reordering happens at the finest possible granularity: every single bit in the stream gets reversed, not just every byte-sized or nibble-sized chunk. You can see that on a single byte:
-
-```systemverilog
-bit [7:0] one_byte = 8'hC2;         // 1100_0010
-bit [7:0] flipped  = {<<{one_byte}};
-// flipped = 8'h43 (0100_0011) - bit 7 swapped with bit 0, bit 6 with bit 1,
-// bit 5 with bit 2, bit 4 with bit 3. That's what "reverse every bit" means
-// for one byte on its own.
-```
-
-Now stretch that same idea across a multi-byte array instead of a single byte:
-
-```systemverilog
-byte       four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
-bit [31:0] fully_reversed = {<<{four_bytes}};
-// fully_reversed = 32'h22CC4488
-```
-
-That's still just one operation, one line, same as `{<<byte{...}}` — only the slice size changed. But because it reverses at the finest possible granularity (1 bit), it takes care of the byte order and the internal bit order of each byte simultaneously, in that single expression. You never write a byte-swap step and a bit-swap step separately; picking slice size 1 is what makes one expression do both at once.
 
 ### Your Task — Part B (hardest part of this file)
 
-`payload` is scrambled the same way: the three bytes are in the wrong order, *and* the bits inside each byte are also reversed — exactly like `four_bytes` above, just with 3 bytes instead of 4. Write one streaming expression that reverses it into `decoded_code`.
+`payload` is scrambled the same way `four_bytes` is scrambled by `{<<{...}}` above. Write one streaming expression that reverses it into `decoded_code`.
 
 ---
 
@@ -146,30 +123,13 @@ $display("got %0d", shared_value); // guaranteed to see 42, not a stale value
 
 There is no `join` that could connect these two processes — they aren't nested inside each other. The event is the only bridge between them. It has no value and no memory of its own, just a synchronization point: if it's triggered before anyone is waiting on it, that trigger is lost, so ordering matters — the producer sets `shared_value` *before* triggering, and the consumer only reads it *after* waiting, so it can never observe a half-updated value.
 
-`@(my_event)` is the edge-triggered way to wait for a trigger. Every event also has a `.triggered` property — a level check instead of an edge wait, true only during the exact time step the event fired:
-
-```systemverilog
-event kettle_ready;
-
-// somewhere, water finishes heating and triggers it once:
-#37;
--> kettle_ready;
-
-// somewhere else - wait() re-checks its condition correctly, catching the
-// exact time step .triggered goes true, however long that takes:
-wait (kettle_ready.triggered);
-$display("tea time");
-```
-
-A plain `if (kettle_ready.triggered)` checked once, at some arbitrary moment, will almost always read false — it only reflects that single instant, and the kettle hasn't triggered yet at time 0. And you can't fix that by polling `.triggered` on a fixed delay loop either (`#5; if (...) ...; #5; if (...) ...;`) — since `.triggered` is only true during the *exact* time step of the trigger, a delay that doesn't happen to land on that exact moment walks right past it and never sees it. `wait(...)` is built to re-check its condition correctly regardless of timing, which is why it — not a hand-rolled polling loop — is the right tool here.
+Every event also has a `.triggered` property, true if the event fired during the current time step — you'll see it used in the `.sv` file's final check, right after the wait, to confirm the trigger actually happened.
 
 ### Your Task — Part B (hardest part of this file)
 
-Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then check `race_finished.triggered` the *correct* way (see the `kettle_ready` example above — not a bare `if`, not a delay-based poll) before printing the result.
+Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then `@(race_finished)` before printing the result.
 
 Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in.
-
-One honest note: nothing here technically *forces* you to touch `race_finished` at all — `fork...join` (not `join_none`) would block until all three racers finish on its own, and you could print the result right after with no event in sight. Do it with the event anyway; the point is to practice the construct, not to find the shortest correct program.
 
 ---
 

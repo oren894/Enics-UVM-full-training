@@ -45,26 +45,15 @@ module the_rendezvous;
     /*------------------------------------------------------------------------------
     --  Part B - Processes + Events (the hard part!)
     --  Launch all three racers to run AT THE SAME TIME (not one after another),
-    --  then check whether race_finished has fired using its `.triggered`
-    --  property instead of the edge-triggered @(race_finished) form.
-    --
-    --  A bare "if (race_finished.triggered)" checked once, right after the
-    --  fork, will read false - the racers haven't had time to finish yet, and
-    --  a one-shot if only looks at that single instant. Also don't try to
-    --  catch it by polling .triggered on a fixed #delay loop - .triggered is
-    --  only true during the exact time step the event fires, so a delay that
-    --  doesn't happen to land on that exact moment will walk right past it.
-    --  There's a statement built for exactly this: re-checking a condition
-    --  and only proceeding once it's true, without you managing the polling
-    --  yourself.
+    --  then wait for the race_finished event before printing the result.
     ------------------------------------------------------------------------------*/
     initial begin
         // INSERT YOUR CODE HERE!
 
-        if (finish_order.size() == 3)
+        if (race_finished.triggered)
             $display("S U C C E S S - finish order: %0s, %0s, %0s", finish_order[0], finish_order[1], finish_order[2]);
         else
-            $display("Race never finished - only %0d racer(s) crossed the line. Did you launch all three in parallel and keep checking race_finished.triggered?", finish_order.size());
+            $display("Race never finished. Did you launch all three in parallel and wait on the event?");
 
         $finish;
     end

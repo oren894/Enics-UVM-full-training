@@ -20,7 +20,7 @@ module decode_the_signal;
 
     // "Raw telemetry" - 8 noisy bytes off a sensor bus. Only indices 1, 3 and 5
     // carry real payload; the rest is noise.
-    byte raw_telemetry[8] = '{8'h00, 8'hAA, 8'h11, 8'h5B, 8'h22, 8'h5D, 8'h33, 8'h44};
+    byte raw_telemetry[8] = '{8'h00, 8'hBA, 8'h11, 8'hA5, 8'h22, 8'hD5, 8'h33, 8'h44};
 
     byte       payload[3];
     bit [23:0] decoded_code;
@@ -40,16 +40,14 @@ module decode_the_signal;
 
         /*--------------------------------------------------------------------------
         --  Part B - Streaming Operations (the hard part!)
-        --  payload is scrambled twice over, not once:
-        --   1. The three bytes are in reversed order (payload[0] is really the
-        --      LEAST significant byte of the real code, not the most significant).
-        --   2. On top of that, the bits INSIDE each byte are also reversed
-        --      (bit 7 and bit 0 swapped, bit 6 and bit 1 swapped, and so on).
+        --  Recover decoded_code from payload:
+        --   1. Swap the first half of payload (the MSB half) with the last half
+        --      (the LSB half).
+        --   2. Within EACH byte, at its position after step 1, reverse the
+        --      order of its bits (bit 7 <-> bit 0, bit 6 <-> bit 1, and so on).
         --
-        --  A streaming operator can undo both scrambles in a single expression
-        --  if you pick the right slice size - re-read the Streaming Operations
-        --  section in MATERIAL.md and think about what "no slice size given"
-        --  actually means before reaching for byte-level streaming.
+        --  Both steps are streaming operators - see MATERIAL.md for the two
+        --  idioms you need and how they combine.
         --------------------------------------------------------------------------*/
 
         // INSERT YOUR CODE HERE!

@@ -47,14 +47,17 @@ The number after `<<` is the slice size the reordering operates on:
 ```systemverilog
 byte four_bytes[4] = '{8'h11, 8'h22, 8'h33, 8'h44};
 
-{four_bytes}            // 32'h11223344 - plain concatenation, no reordering
-{<<byte{four_bytes}}    // 32'h44332211 - byte order reversed, bits inside each byte untouched
-{<<{four_bytes}}        // 32'h22CC4488 - every single bit reversed (no slice size given = 1 bit)
+{four_bytes}                     // 32'h11223344 - plain concatenation, no reordering
+{<<byte{four_bytes}}             // 32'h44332211 - byte order reversed, bits inside each byte untouched
+{<<16{four_bytes}}               // 32'h33441122 - first half (16 bits) swapped with last half (16 bits)
+{<<byte{ {<<{four_bytes}} }}     // 32'h8844CC22 - byte order UNCHANGED, bits inside each byte reversed
 ```
+
+That last one is two streaming operators nested in a single expression: the inner one reverses every bit (which also flips byte order as a side effect), and the outer one swaps the byte order back - net effect, only the bits inside each byte end up reversed.
 
 ### Your Task — Part B (hardest part of this file)
 
-`payload` is scrambled the same way `four_bytes` is scrambled by `{<<{...}}` above. Write one streaming expression that reverses it into `decoded_code`.
+Apply the "swap halves" idiom and the "reverse bits inside each byte, byte order unchanged" idiom above to `payload`, in that order, to get `decoded_code`.
 
 ---
 

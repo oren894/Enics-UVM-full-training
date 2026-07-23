@@ -73,7 +73,7 @@ bit [31:0] fully_reversed = {<<{four_bytes}};
 // fully_reversed = 32'h22CC4488
 ```
 
-That result isn't some new, unrelated operation — it's exactly the same "reverse every bit" idea from the single-byte example above, just applied across all 32 bits instead of 8. And because of that, it happens to be identical to doing two separate things back to back: reverse the *order* of the 4 bytes (like `{<<byte{...}}` does), **and then** apply the single-byte bit-reversal from above to each of those 4 bytes individually. Reversing a whole stream bit-by-bit and reversing "chunk order, then bits within each chunk" always land on the same answer — a full reversal doesn't care how you group the bits while you're reversing them.
+That's still just one operation, one line, same as `{<<byte{...}}` — only the slice size changed. But because it reverses at the finest possible granularity (1 bit), it takes care of the byte order and the internal bit order of each byte simultaneously, in that single expression. You never write a byte-swap step and a bit-swap step separately; picking slice size 1 is what makes one expression do both at once.
 
 ### Your Task — Part B (hardest part of this file)
 
@@ -146,14 +146,30 @@ $display("got %0d", shared_value); // guaranteed to see 42, not a stale value
 
 There is no `join` that could connect these two processes — they aren't nested inside each other. The event is the only bridge between them. It has no value and no memory of its own, just a synchronization point: if it's triggered before anyone is waiting on it, that trigger is lost, so ordering matters — the producer sets `shared_value` *before* triggering, and the consumer only reads it *after* waiting, so it can never observe a half-updated value.
 
+`@(my_event)` is the edge-triggered way to wait for a trigger. Every event also has a `.triggered` property — a level check instead of an edge wait, true only during the exact time step the event fired:
+
+```systemverilog
+event kettle_ready;
+
+// somewhere, water finishes heating and triggers it once:
+#37;
+-> kettle_ready;
+
+// somewhere else - wait() re-checks its condition correctly, catching the
+// exact time step .triggered goes true, however long that takes:
+wait (kettle_ready.triggered);
+$display("tea time");
+```
+
+A plain `if (kettle_ready.triggered)` checked once, at some arbitrary moment, will almost always read false — it only reflects that single instant, and the kettle hasn't triggered yet at time 0. And you can't fix that by polling `.triggered` on a fixed delay loop either (`#5; if (...) ...; #5; if (...) ...;`) — since `.triggered` is only true during the *exact* time step of the trigger, a delay that doesn't happen to land on that exact moment walks right past it and never sees it. `wait(...)` is built to re-check its condition correctly regardless of timing, which is why it — not a hand-rolled polling loop — is the right tool here.
+
 ### Your Task — Part B (hardest part of this file)
 
-You're writing two independent processes, "starter" and "commentator" (see the `.sv` file) — neither is nested inside the other, so there's no `join` between them, exactly like the `data_ready` example above.
+Launch all three racers with `fork...join_none` so they run concurrently (not one after another), then check `race_finished.triggered` the *correct* way (see the `kettle_ready` example above — not a bare `if`, not a delay-based poll) before printing the result.
 
-- **starter**: launch all three racers with `fork...join_none` so they run concurrently (not one after another), then let the process end.
-- **commentator**: the only way it can find out the racers are done is `@(race_finished)`. Wait for it, then print the result.
+Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in.
 
-Watch the finish order in the output — it reflects `racer_times`, not the order you wrote the `fork` statements in. Also convince yourself there's no lost-trigger hazard here, the way there could theoretically be in the `data_ready` example above — what guarantees "commentator" is already waiting on `@(race_finished)` before any racer could possibly finish?
+One honest note: nothing here technically *forces* you to touch `race_finished` at all — `fork...join` (not `join_none`) would block until all three racers finish on its own, and you could print the result right after with no event in sight. Do it with the event anyway; the point is to practice the construct, not to find the shortest correct program.
 
 ---
 

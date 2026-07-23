@@ -44,22 +44,19 @@ module the_rendezvous;
 
     /*------------------------------------------------------------------------------
     --  Part B - Processes + Events (the hard part!)
-    --  Two SEPARATE, INDEPENDENT processes below need to be written. They have
-    --  no fork/join relationship to each other - neither one is nested inside
-    --  the other - so "starter" finishing does not mean "commentator" can just
-    --  keep going, and there is no join that lets "commentator" block on the
-    --  racers directly. race_finished is the only thing connecting them.
+    --  Launch all three racers to run AT THE SAME TIME (not one after another),
+    --  then check whether race_finished has fired using its `.triggered`
+    --  property instead of the edge-triggered @(race_finished) form.
     --
-    --  "starter" - launch all three racers to run AT THE SAME TIME (not one
-    --  after another), then let this process end. It does not wait for them.
-    ------------------------------------------------------------------------------*/
-    initial begin
-        // INSERT YOUR CODE HERE!
-    end
-
-    /*------------------------------------------------------------------------------
-    --  "commentator" - has no way to know when the racers above finish except
-    --  by waiting on race_finished. Wait for it, then print the result.
+    --  A bare "if (race_finished.triggered)" checked once, right after the
+    --  fork, will read false - the racers haven't had time to finish yet, and
+    --  a one-shot if only looks at that single instant. Also don't try to
+    --  catch it by polling .triggered on a fixed #delay loop - .triggered is
+    --  only true during the exact time step the event fires, so a delay that
+    --  doesn't happen to land on that exact moment will walk right past it.
+    --  There's a statement built for exactly this: re-checking a condition
+    --  and only proceeding once it's true, without you managing the polling
+    --  yourself.
     ------------------------------------------------------------------------------*/
     initial begin
         // INSERT YOUR CODE HERE!
@@ -67,7 +64,7 @@ module the_rendezvous;
         if (finish_order.size() == 3)
             $display("S U C C E S S - finish order: %0s, %0s, %0s", finish_order[0], finish_order[1], finish_order[2]);
         else
-            $display("Race never finished - only %0d racer(s) crossed the line. This process has no fork/join relationship to the racers - how else could it find out they're done?", finish_order.size());
+            $display("Race never finished - only %0d racer(s) crossed the line. Did you launch all three in parallel and keep checking race_finished.triggered?", finish_order.size());
 
         $finish;
     end

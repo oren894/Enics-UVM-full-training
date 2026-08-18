@@ -2,13 +2,13 @@
 
 You already know SystemVerilog syntax (Assignment 2). Before you build something real (Assignment 4 — a FIFO) and then learn UVM (Assignment 5), you need one more skill: **reading a waveform and knowing exactly when a signal is supposed to change, and why.**
 
-This assignment is three short, self-contained "detective cases." Each one is a tiny piece of hardware with one bug. None of them require UVM. All of them require you to actually open the waveform, not just read the code.
+This assignment is three short, self-contained cases. Cases 1 and 3 are "detective" cases — a tiny piece of hardware with one bug. Case 2 is different: the module you're given already works, but a customer complaint means the *policy* it implements isn't good enough, and you build a fix next to it. None of them require UVM. All of them require you to actually open the waveform, not just read the code.
 
 **Rules for every case:**
-1. **Predict first.** Before you run anything, read the DUT and write down (on paper, in your head, wherever) what you expect to see.
+1. **Predict first.** Before you run anything, read the DUT (and, for Case 2, the spec) and write down (on paper, in your head, wherever) what you expect to see.
 2. **Run it and look at the waveform**, not just the `S U C C E S S` / `MISMATCH` text. The text tells you *that* something is wrong; the waveform tells you *why*.
-3. **Answer the questions** for that case — out loud to yourself, to a teammate, or to your mentor. If you can't answer them, you don't understand the bug yet, even if your fix happens to work.
-4. **Fix it**, re-run, and confirm the waveform now looks the way you predicted a correct design should look.
+3. **Answer the questions** for that case — out loud to yourself, to a teammate, or to your mentor. If you can't answer them, you don't understand the bug (or the design) yet, even if your fix happens to work.
+4. **Fix or build it**, re-run, and confirm the waveform now looks the way you predicted a correct design should look.
 
 ---
 
@@ -50,22 +50,23 @@ Two 3-stage shift registers, `stage0/1/2_nb` (correct, non-blocking) and `stage0
 
 ---
 
-## Case 2 — The Phantom Latch
+## Case 2 — The Line Cutter
 
 **File:** `SV-Files-Assignment3/case2_priority_grant.sv`
 
-A 4-input priority grant block. `req[3]` is highest priority, `req[0]` lowest, and `grant` should be all-zero when no request is active.
+`case2_priority_grant` is a working 4-input **fixed-priority** arbiter: `req[3]` is highest priority, `req[0]` lowest, exactly one `grant` bit set for the highest-priority active request, all-zero when nobody's asking.
 
-**This is not a blocking/non-blocking bug** — every assignment already uses `=` correctly inside `always_comb`.
+**The problem:** a customer plugged into port0 just filed a complaint. As long as ports 1-3 keep requesting, port0 never gets served — not a bug, that's exactly what fixed priority does by design. Below it in the same file is `case2_round_robin_arbiter`, currently just a port list and a spec comment — your job this time is to **build** a rotating-priority arbiter: every time a port wins, it drops to the back of the line, so priority rotates and nobody waits forever.
 
-**Waveform:** the testbench sweeps `req` through all 16 values automatically. Put `req` and `grant` on the waveform and step through the sweep.
+**Waveform:** run the testbench, then put `req_fixed`/`grant_fixed` together (watch grant get stuck on port3 once `req_fixed` goes to `4'b1111`), and separately `req_rr`, `grant_rr`, `last_grant` together (watch `last_grant` step 0 → 1 → 2 → 3 → 0 → ... as `grant_rr` rotates once your arbiter is correct).
 
 **Questions:**
-1. Which values of `req` produce a `grant` that doesn't match a priority encoder? What do they have in common?
-2. Look at the `always_comb` block. For those `req` values, is there any statement that assigns `grant` at all? If `grant` isn't assigned on some path, what value does it hold in simulation — and what would it turn into in real silicon?
-3. Why do simulators (and synthesis tools) warn about an `always_comb`/`always @*` block that doesn't drive its output on every possible input combination? What hardware structure does that turn into?
+1. With `req_fixed` held at `4'b1111`, which port wins forever under fixed priority? Given the `if (req[3]) ... else if (req[2]) ... else if (req[0])` chain, why is port0 specifically the one that starves?
+2. In `case2_round_robin_arbiter`, what needs to be a **register** (survives across clock edges) and what should stay purely **combinational**? (This is Case 1's blocking/non-blocking lesson and Case 3's current-state-vs-next-state lesson, applied to a new circuit.)
+3. After port2 wins a cycle, which port becomes highest priority the *next* cycle under your rotation rule? Which becomes lowest?
+4. Once your arbiter passes, look at the console output from the all-four-ports-requesting phase. What's the longest number of cycles any port waited for a grant while continuously requesting — and why can't that number ever exceed 3 (one less than the number of ports) as long as your rotation is correct?
 
-**Fix:** add whatever `else`/`else if` branch(es) are missing so `grant` is driven on every path.
+**Task:** implement `case2_round_robin_arbiter` where the file says `// INSERT YOUR CODE HERE!`, following the spec comment inside the module. Leave `case2_priority_grant` untouched — the testbench uses it as the "before" picture.
 
 ---
 
@@ -89,6 +90,6 @@ A small "vault" FSM: `VAULT_LOCKED → VAULT_MAYBE → VAULT_OPEN`, needs two co
 
 ## Why This Matters
 
-The FIFO you're about to build (Assignment 4), and the real project after that, live on exactly these three lessons: knowing when a register actually updates, making sure combinational logic is always fully driven, and knowing which signal — current or next state — an output should really be watching.
+The FIFO you're about to build (Assignment 4), and the real project after that, live on exactly these lessons: knowing when a register actually updates, knowing which signal — current or next state — an output should really be watching, and (Case 2) building a small stateful pointer that changes the *policy* of a circuit without touching its combinational shape. That last one is precisely what `wr_ptr`/`rd_ptr` do in the FIFO you're about to build.
 
-When all three cases print `S U C C E S S` **and** you can explain each bug and fix out loud without looking at this file again, you're ready for Assignment 4.
+When all three cases print `S U C C E S S` **and** you can explain each bug/fix out loud without looking at this file again, you're ready for Assignment 4.

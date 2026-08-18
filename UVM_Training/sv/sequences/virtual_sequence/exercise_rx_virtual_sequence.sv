@@ -104,9 +104,18 @@ class rx_virtual_sequence extends uvm_sequence;
         end
 
         // ── Phase 2: Send traffic after lock ──
+        // `uvm_do_on_with` randomizes and sends the sequence like `uvm_do_on`,
+        // but lets you pass extra inline constraints in {}. Here we cap the
+        // packet length to [0:1000] bytes. Note this ADDS to (doesn't
+        // replace) input_data_sequence's own length_c constraint, which
+        // already requires the length to be in
+        // [MIN_DATA_SIZE:MAX_DATA_SIZE] and a multiple of 4 - so the actual
+        // range you'll see sent is [MIN_DATA_SIZE:1000].
         `uvm_info(get_name(), $sformatf("DUT locked. Sending %0d messages...", num_msgs), UVM_LOW)
         repeat(num_msgs) begin
-            `uvm_do_on(input_data_sequence, p_sequencer.input_data_sequencer)
+            `uvm_do_on_with(input_data_sequence, p_sequencer.input_data_sequencer, {
+                input_data.length inside {[0:1000]};
+            })
         end
     endtask
 

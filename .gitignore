@@ -1,6 +1,6 @@
 # ── Runspace: ignore everything except the .gitkeep sentinel ────────────────
-runspace/*
-!runspace/.gitkeep
+UVM_Training/runspace/*
+!UVM_Training/runspace/.gitkeep
 
 .vscode/*
 .idea/*

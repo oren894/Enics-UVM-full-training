@@ -39,7 +39,7 @@ module the_rendezvous;
     --  storage instead of a fresh copy per call.
     ------------------------------------------------------------------------------*/
     task automatic run_racer(string name, int lap_time);
-        // INSERT YOUR CODE HERE!
+        // YOUR CODE HERE!
     endtask
 
     /*------------------------------------------------------------------------------

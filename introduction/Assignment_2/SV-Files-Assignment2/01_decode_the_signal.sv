@@ -18,7 +18,7 @@
 
 module decode_the_signal;
 
-    // "Raw telemetry" - 8 noisy bytes off a sensor bus. Only indices 1, 3 and 5
+    // "Raw telemetry" - 8 bytes off a sensor bus. Only indices 1, 3 and 5
     // carry real payload; the rest is noise.
     byte raw_telemetry[8] = '{8'h00, 8'hBA, 8'h11, 8'hA5, 8'h22, 8'hD5, 8'h33, 8'h44};
 
@@ -27,7 +27,7 @@ module decode_the_signal;
     string     decoded_hex;
 
     initial begin
-
+        
         /*--------------------------------------------------------------------------
         --  Part A - Data Structures + Loops
         --  Collect raw_telemetry[1], raw_telemetry[3] and raw_telemetry[5] - IN
@@ -54,6 +54,7 @@ module decode_the_signal;
 
         decoded_hex = $sformatf("%h", decoded_code);
         decoded_hex = decoded_hex.toupper();
+
 
         if (decoded_code == 24'hBADA55)
             $display("S U C C E S S - decoded_code = 0x%0s. That's a %0s decode.", decoded_hex, decoded_hex);

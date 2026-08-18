@@ -4,6 +4,19 @@ Read README.md first for architecture overview.
 
 ---
 
+## Before You Start — Learn UVM
+
+If you haven't worked with UVM before, start with the slides in [`introduction_uvm/`](introduction_uvm/):
+
+- `UVM Basics (3).pptx` — core UVM architecture: components, factory, phases
+- `UVM IPC(1).pptx` — TLM communication between components (analysis ports, exports)
+- `UVMSequenceSequencer.pptx` — sequences, sequencers, and how stimulus flows to a driver
+- `new_agent_presentation.pptx` — anatomy of a UVM agent (driver/monitor/sequencer)
+
+These slides cover the concepts at a high level only — they are **not** a substitute for hands-on UVM tutorials. Skim them first so the terms below (agent, sequencer, TLM analysis port, scoreboard) aren't new when you hit them in the tasks, then come back here once you're oriented.
+
+---
+
 ## Task A — Enhance the Reference Model
 
 **File:** `sv/components/reference_model/exercise_rx_reference_model.sv`

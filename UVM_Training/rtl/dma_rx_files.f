@@ -5,15 +5,12 @@
 ./dma_rx_pkg.sv
 
 # Sub-modules
-./dma_rx_config.sv
-./dma_rx_apb.sv
 ./dma_rx_fsm.sv
-./dma_rx_phase_ctrl.sv  
+./dma_rx_phase_ctrl.sv
 ./dma_rx_len_detect.sv
 ./dma_rx_ctrl_proc.sv
 ./dma_rx_data_proc.sv
 ./dma_rx_parity_check.sv
-./dma_rx_write.sv
 
 # Top-level module
 ./dma_rx_top.sv

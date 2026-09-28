@@ -4,20 +4,16 @@
 ../sv/rx_verification_pack.sv
 
 # RTL Files
-../rtl/dma_config_pkg.sv
 ../rtl/dma_crc_pkg.sv
 ../rtl/dma_rx_pkg.sv
 
 # Sub-modules
-../rtl/dma_rx_config.sv
-../rtl/dma_rx_config_apb.sv
 ../rtl/dma_rx_fsm.sv
 ../rtl/dma_rx_phase_ctrl.sv  
 ../rtl/dma_rx_len_detect.sv
 ../rtl/dma_rx_ctrl_proc.sv
 ../rtl/dma_rx_data_proc.sv
 ../rtl/dma_rx_parity_check.sv
-../rtl/dma_rx_write.sv
 
 # Top-level module
 ../rtl/dma_rx_top.sv

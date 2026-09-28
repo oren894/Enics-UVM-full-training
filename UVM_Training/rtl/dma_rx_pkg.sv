@@ -4,7 +4,6 @@ package dma_rx_pkg;
 
     // Import shared packages
     import dma_crc_pkg::*;
-    import dma_config_pkg::*;
 
     // Length and parity field sizes
     parameter LEN_CRC_LENGTH = 8;      // Length of the length and CRC fields in bits (8 NIBBLES = 32 BITS)

@@ -1,8 +1,7 @@
 `timescale 1ns/1ps
 
-module dma_rx_top 
+module dma_rx_top
     import dma_rx_pkg::*;
-    import dma_config_pkg::*;
     import dma_crc_pkg::*;
 #(
     parameter CRC_POLY = 16'h1021,
@@ -15,27 +14,13 @@ module dma_rx_top
     input logic [3:0] input_data, // input data
     input logic input_valid, // valid signal - input data is valid
 
-    // Configuration interface (wire-based from top module)
-    input dma_config_t config_in, // configuration structure
-    input logic fetch_enable, // signal to fetch new configuration
-
     output logic [31:0] data_out, // output data
     output logic [15:0] control_out, // control data output
-    
+
     output logic control_valid, // control data valid signal
     output logic output_valid, // valid signal
     output logic parity_not_valid, // parity was invalid at end of packet
-    output logic parity_valid, // parity validation result at end of packet
-    
-    // Memory interface outputs
-    output logic [31:0] mem_addr,
-    output logic [31:0] mem_data,
-    output logic mem_write_enable,
-    output logic mem_valid,
-    
-    // DMA status outputs
-    output logic write_complete,
-    output logic [15:0] pages_written
+    output logic parity_valid // parity validation result at end of packet
 );
 
     // FSM signals
@@ -108,24 +93,6 @@ module dma_rx_top
     logic [31:0] output_data_word;
     logic output_data_valid;
     logic output_parity_valid;
-
-    // Configuration signals
-    dma_config_t config_reg_file;
-    logic [31:0] busy_transaction;
-    
-    // Busy transaction indication (32'hFFFF_FFFF = busy, 32'h0000_0000 = ready)
-    // Set to busy when write is not complete (active transaction)
-    assign busy_transaction = write_complete ? 32'h0000_0000 : 32'hFFFF_FFFF;
-
-    // Current configuration storage
-    dma_rx_config u_dma_rx_config (
-        .clk(clk),
-        .rst_n(rst_n),
-        .fetch_enable(fetch_enable),
-        .config_in(config_in),
-        .busy_in(busy_transaction),
-        .config_out(config_reg_file)
-    );
 
     // FSM control block
     dma_rx_fsm u_fsm (
@@ -301,25 +268,6 @@ module dma_rx_top
     // Valid when: raw OK  OR  data fixed; also accept 1-bit CRC error detect-only
     // Do not assert control_valid when control is all zeros (null control)
     assign control_valid = (fsm_data_processing_enable) && (ctrl_crc_ok_or_fixed || ctrl_crc_field_one_error) && phase_control_end && (control_out != 16'd0);
-
-
-    //TODO: fix protocol between config and write module
-    // Connect BUSY signal from write module to config module
-    // Memory write module - handles DMA transfers to memory using configuration
-    dma_rx_write u_dma_write (
-        .clk(clk),
-        .rst_n(rst_n),
-        .config_in(config_reg_file),
-        .data_in(output_data_word),
-        .data_valid(output_data_valid),
-        .control_in(control_out),
-        .control_valid(control_valid),
-        .mem_addr(mem_addr),
-        .mem_data(mem_data),
-        .mem_write_enable(mem_write_enable),
-        .write_complete(write_complete),
-        .pages_written(pages_written)
-    );
 
     // Debug signal
 `ifdef DEBUG

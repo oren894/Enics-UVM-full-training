@@ -66,8 +66,6 @@ The DUT receives a **4-bit nibble serial stream** and processes it through a pip
 | `dma_rx_ctrl_proc` | Parses 16-bit control field + 16-bit CRC |
 | `dma_rx_data_proc` | Accumulates nibbles into 32-bit data words |
 | `dma_rx_parity_check` | XOR parity validation across the full data payload |
-| `dma_rx_write` | DMA write engine — outputs to memory interface |
-| `dma_rx_config` | Latches DMA configuration (base address, page size, etc.) |
 
 ### DUT Ports (Key Signals)
 
@@ -77,8 +75,6 @@ Inputs:
   input_data[3:0]       — 4-bit nibble stream
   input_valid           — handshake valid
   lock_valid_threshold[15:0] — configures lock sensitivity (randomized per test)
-  config_in             — DMA configuration struct
-  fetch_enable          — triggers config latch
 
 Outputs:
   data_out[31:0]        — processed 32-bit data word
@@ -87,9 +83,6 @@ Outputs:
   control_valid         — control word valid strobe
   parity_valid          — parity check passed
   parity_not_valid      — parity check failed
-  mem_addr/mem_data/mem_write_enable/mem_valid — DMA memory interface
-  write_complete        — DMA transaction done
-  pages_written[15:0]   — DMA page count
 ```
 
 ---
@@ -185,10 +178,6 @@ rx-uvm-env/
     │   ├── dma_rx_ctrl_proc.sv       # Control field processor
     │   ├── dma_rx_data_proc.sv       # Data accumulator
     │   ├── dma_rx_parity_check.sv    # XOR parity validator
-    │   ├── dma_rx_write.sv           # DMA write engine
-    │   ├── dma_rx_config.sv          # Configuration register file
-    │   ├── dma_rx_config_apb.sv      # APB config interface
-    │   ├── dma_config_pkg.sv         # DMA config struct (dma_config_t)
     │   ├── dma_crc_pkg.sv            # CRC utilities package
     │   └── dma_rx_pkg.sv             # RX package (FSM state enum, etc.)
     │
@@ -512,6 +501,4 @@ To run with **exercise files** (implement Task C): `xrun -f list_exercise_C.f ..
 ## Known Limitations
 
 - `LOCK_SINGLE_BIT_ERR` lock type is currently **disabled** — the DUT does not support single-bit length CRC correction during lock acquisition.
-- `config_in` / `dma_rx_write` integration has a known open TODO regarding busy-signal protocol handshake.
-- `mem_valid` is not currently connected to the testbench output monitor.
 - Regression runner requires Cadence grid environment (`qsub`/`qstat`) — not portable to standalone Xcelium without modification.
